@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Flame, MessageCircle, Camera } from "lucide-react"
+import { Flame, MessageCircle, Camera, X, Trash2, MoreVertical } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { supabase } from "@/lib/supabase"
 
@@ -28,6 +28,8 @@ export function HomeFeed() {
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
   const [academiaId, setAcademiaId] = useState<string | null>(null)
+  const [currentAlunoId, setCurrentAlunoId] = useState<string | null>(null)
+  const [activeStory, setActiveStory] = useState<Story | null>(null)
 
   useEffect(() => {
     async function fetchFeed() {
@@ -42,8 +44,8 @@ export function HomeFeed() {
 
       const aId = aluno?.academia_id || null
       setAcademiaId(aId)
+      setCurrentAlunoId(aluno?.id || null)
 
-      // Busca posts
       let postsQuery = supabase
         .from('posts')
         .select('id, foto_url, tipo, descricao_automatica, total_fogo, created_at, aluno_id, alunos(profiles(nome, foto_url))')
@@ -54,7 +56,6 @@ export function HomeFeed() {
 
       const { data: postsData } = await postsQuery
 
-      // Busca stories ativos
       const agora = new Date().toISOString()
       let storiesQuery = supabase
         .from('stories')
@@ -80,6 +81,11 @@ export function HomeFeed() {
     fetchFeed()
   }, [])
 
+  async function handleDeletePost(postId: string) {
+    await supabase.from('posts').delete().eq('id', postId)
+    setPosts(posts.filter(p => p.id !== postId))
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[80vh] items-center justify-center">
@@ -90,6 +96,31 @@ export function HomeFeed() {
 
   return (
     <div className="flex flex-col">
+      {/* Story fullscreen */}
+      {activeStory && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+          <div className="flex items-center justify-between px-4 pt-10 pb-4">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10 border-2 border-primary overflow-hidden">
+                {activeStory.profiles.foto_url && (
+                  <AvatarImage src={activeStory.profiles.foto_url} className="object-cover" />
+                )}
+                <AvatarFallback className="bg-secondary text-foreground text-sm font-bold">
+                  {activeStory.profiles.nome.split(" ").map((n: string) => n[0]).join("")}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm font-semibold text-white">{activeStory.profiles.nome}</span>
+            </div>
+            <button onClick={() => setActiveStory(null)}>
+              <X className="h-6 w-6 text-white" />
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <img src={activeStory.foto_url} alt="story" className="w-full h-full object-contain" />
+          </div>
+        </div>
+      )}
+
       <div className="sticky top-0 z-10 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl">
         <h1 className="text-xl font-bold text-foreground">
           Gym<span className="text-primary">Flow</span>
@@ -100,19 +131,23 @@ export function HomeFeed() {
       <div className="flex gap-3 overflow-x-auto px-4 py-4 scrollbar-none">
         {stories.length === 0 ? (
           <div className="flex flex-shrink-0 flex-col items-center gap-1">
-            <div className="rounded-full bg-secondary p-[2px]">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-background bg-secondary">
-                <Camera className="h-6 w-6 text-muted-foreground" />
-              </div>
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
+              <Camera className="h-6 w-6 text-muted-foreground" />
             </div>
             <span className="text-xs text-muted-foreground">Sem stories</span>
           </div>
         ) : (
           stories.map((story) => (
-            <div key={story.id} className="flex flex-shrink-0 flex-col items-center gap-1">
+            <button
+              key={story.id}
+              onClick={() => setActiveStory(story)}
+              className="flex flex-shrink-0 flex-col items-center gap-1"
+            >
               <div className="rounded-full p-[2px] bg-gradient-to-br from-primary to-primary/60">
-                <Avatar className="h-16 w-16 border-2 border-background">
-                  {story.profiles.foto_url && <AvatarImage src={story.profiles.foto_url} />}
+                <Avatar className="h-16 w-16 border-2 border-background overflow-hidden">
+                  {story.profiles.foto_url && (
+                    <AvatarImage src={story.profiles.foto_url} className="object-cover" />
+                  )}
                   <AvatarFallback className="bg-secondary text-foreground text-sm font-bold">
                     {story.profiles.nome.split(" ").map((n: string) => n[0]).join("")}
                   </AvatarFallback>
@@ -121,7 +156,7 @@ export function HomeFeed() {
               <span className="max-w-[64px] truncate text-xs text-muted-foreground">
                 {story.profiles.nome.split(" ")[0]}
               </span>
-            </div>
+            </button>
           ))
         )}
       </div>
@@ -133,14 +168,17 @@ export function HomeFeed() {
             <Camera className="h-10 w-10 text-muted-foreground" />
           </div>
           <p className="text-lg font-bold text-foreground">Nenhum post ainda</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Seja o primeiro a postar seu treino!
-          </p>
+          <p className="mt-2 text-sm text-muted-foreground">Seja o primeiro a postar seu treino!</p>
         </div>
       ) : (
         <div className="flex flex-col">
           {posts.map((post) => (
-            <FeedPost key={post.id} post={post} />
+            <FeedPost
+              key={post.id}
+              post={post}
+              isOwn={post.aluno_id === currentAlunoId}
+              onDelete={() => handleDeletePost(post.id)}
+            />
           ))}
         </div>
       )}
@@ -148,9 +186,10 @@ export function HomeFeed() {
   )
 }
 
-function FeedPost({ post }: { post: Post }) {
+function FeedPost({ post, isOwn, onDelete }: { post: Post; isOwn: boolean; onDelete: () => void }) {
   const [fired, setFired] = useState(false)
   const [fireCount, setFireCount] = useState(post.total_fogo)
+  const [showMenu, setShowMenu] = useState(false)
 
   async function handleFire() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -210,14 +249,36 @@ function FeedPost({ post }: { post: Post }) {
         </div>
       )}
       <div className="px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            {post.profiles.foto_url && <AvatarImage src={post.profiles.foto_url} />}
-            <AvatarFallback className="bg-secondary text-foreground text-xs font-bold">
-              {post.profiles.nome.split(" ").map((n: string) => n[0]).join("")}
-            </AvatarFallback>
-          </Avatar>
-          <span className="text-sm font-semibold text-foreground">{post.profiles.nome}</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8 overflow-hidden">
+              {post.profiles.foto_url && (
+                <AvatarImage src={post.profiles.foto_url} className="object-cover" />
+              )}
+              <AvatarFallback className="bg-secondary text-foreground text-xs font-bold">
+                {post.profiles.nome.split(" ").map((n: string) => n[0]).join("")}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-sm font-semibold text-foreground">{post.profiles.nome}</span>
+          </div>
+          {isOwn && (
+            <div className="relative">
+              <button onClick={() => setShowMenu(!showMenu)}>
+                <MoreVertical className="h-5 w-5 text-muted-foreground" />
+              </button>
+              {showMenu && (
+                <div className="absolute right-0 top-6 z-10 rounded-xl border border-border bg-card p-2 shadow-lg">
+                  <button
+                    onClick={() => { onDelete(); setShowMenu(false) }}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-400 hover:bg-secondary"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Excluir post
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="mt-2 flex items-center gap-4">
           <button onClick={handleFire} className="flex items-center gap-1 text-sm">
