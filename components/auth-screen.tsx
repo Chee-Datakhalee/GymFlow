@@ -223,7 +223,7 @@ export function AuthScreen({
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <MapPin className="h-3 w-3" />
-                      <span>{cnpjData.descricao_tipo_de_logradouro} {cnpjData.logradouro}, {cnpjData.numero} — {cnpjData.municipio}/{cnpjData.uf}</span>
+                      <span>{cnpjData.descricao_tipo_de_logradouro} {cnpjData.logradouro}, {cnpjData.numero} — {cnpjData.municipio}/{cnpjData.uf} · CEP {cnpjData.cep?.replace(/^(\d{5})(\d{3})$/, '$1-$2')}</span>
                     </div>
                   </div>
                 )}
