@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Upload, MapPin, Dumbbell } from "lucide-react"
+import { Upload, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +11,7 @@ export function AcademyOnboarding({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState(1)
   const [nome, setNome] = useState("")
   const [telefone, setTelefone] = useState("")
+  const [cnpj, setCnpj] = useState("")
   const [cep, setCep] = useState("")
   const [cidade, setCidade] = useState("")
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -24,6 +25,37 @@ export function AcademyOnboarding({ onComplete }: { onComplete: () => void }) {
     if (!file) return
     setLogoFile(file)
     setLogoPreview(URL.createObjectURL(file))
+  }
+
+  function validarCNPJ(cnpj: string): boolean {
+    const c = cnpj.replace(/\D/g, '')
+    if (c.length !== 14) return false
+    if (/^(\d)\1+$/.test(c)) return false
+    let sum = 0
+    let pos = 5
+    for (let i = 0; i < 12; i++) {
+      sum += parseInt(c[i]) * pos--
+      if (pos < 2) pos = 9
+    }
+    let result = sum % 11 < 2 ? 0 : 11 - (sum % 11)
+    if (result !== parseInt(c[12])) return false
+    sum = 0
+    pos = 6
+    for (let i = 0; i < 13; i++) {
+      sum += parseInt(c[i]) * pos--
+      if (pos < 2) pos = 9
+    }
+    result = sum % 11 < 2 ? 0 : 11 - (sum % 11)
+    return result === parseInt(c[13])
+  }
+
+  function formatCNPJ(value: string): string {
+    const c = value.replace(/\D/g, '').slice(0, 14)
+    return c
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2')
   }
 
   async function handleCepChange(value: string) {
@@ -48,6 +80,7 @@ export function AcademyOnboarding({ onComplete }: { onComplete: () => void }) {
       if (!logoFile) { setErro("Adicione o logo da academia"); return }
       if (!nome.trim()) { setErro("Digite o nome da academia"); return }
       if (!telefone.trim()) { setErro("Digite o telefone"); return }
+      if (!cnpj || !validarCNPJ(cnpj)) { setErro("CNPJ inválido"); return }
       setStep(2)
       return
     }
@@ -61,7 +94,6 @@ export function AcademyOnboarding({ onComplete }: { onComplete: () => void }) {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) throw new Error("Usuário não encontrado")
 
-        // Upload logo
         let logoUrl = null
         if (logoFile) {
           const ext = logoFile.name.split('.').pop()
@@ -75,7 +107,6 @@ export function AcademyOnboarding({ onComplete }: { onComplete: () => void }) {
           }
         }
 
-        // Gera slug a partir do nome
         const slug = nome
           .toLowerCase()
           .normalize('NFD')
@@ -83,7 +114,6 @@ export function AcademyOnboarding({ onComplete }: { onComplete: () => void }) {
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-|-$/g, '')
 
-        // Atualiza profile
         await supabase.from('profiles').upsert({
           id: user.id,
           tipo: 'academia',
@@ -91,9 +121,9 @@ export function AcademyOnboarding({ onComplete }: { onComplete: () => void }) {
           email: user.email || '',
           cep: cep,
           cidade: cidade,
+          cnpj: cnpj.replace(/\D/g, ''),
         }, { onConflict: 'id' })
 
-        // Cria academia
         const { error: acadError } = await supabase.from('academias').insert({
           profile_id: user.id,
           nome: nome,
@@ -102,6 +132,7 @@ export function AcademyOnboarding({ onComplete }: { onComplete: () => void }) {
           logo_url: logoUrl,
           cep: cep,
           cidade: cidade,
+          cnpj: cnpj.replace(/\D/g, ''),
         })
 
         if (acadError) {
@@ -171,6 +202,17 @@ export function AcademyOnboarding({ onComplete }: { onComplete: () => void }) {
                 <div className="flex flex-col gap-2">
                   <Label className="text-muted-foreground">Telefone / WhatsApp</Label>
                   <Input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(11) 99999-9999" className="border-border bg-secondary text-foreground placeholder:text-muted-foreground focus:border-primary" />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label className="text-muted-foreground">CNPJ</Label>
+                  <Input
+                    value={cnpj}
+                    onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
+                    placeholder="00.000.000/0000-00"
+                    maxLength={18}
+                    className="border-border bg-secondary text-foreground placeholder:text-muted-foreground focus:border-primary"
+                  />
                 </div>
               </div>
             )}
