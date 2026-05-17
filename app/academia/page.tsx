@@ -104,7 +104,7 @@ export default function AcademiaLP() {
           <a href="/escolha">
   <img src="/LOGO-GYN-FLOW.png" alt="GymFlow" style={{height:'32px'}} />
 </a>
-          <a className="btn btn-primary" href="/" style={{padding:'8px 16px',fontSize:'13px'}}>Entrar</a>
+          <a className="btn btn-primary" href="/auth" style={{padding:'8px 16px',fontSize:'13px'}}>Entrar</a>
         </nav>
 
         {/* HERO */}
@@ -248,7 +248,7 @@ export default function AcademiaLP() {
                 <li><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>Alertas de frequência</li>
                 <li><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>Suporte via chat</li>
               </ul>
-              <a href="/" className="btn btn-ghost btn-block">Começar grátis</a>
+              <a href="/auth" className="btn btn-ghost btn-block">Começar grátis</a>
             </div>
             <div className="price-card featured reveal reveal-delay-2">
               <span className="price-card-tag">Mais escolhido</span>
@@ -261,7 +261,7 @@ export default function AcademiaLP() {
                 <li><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>Ranking e gamificação</li>
                 <li><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>WhatsApp automático</li>
               </ul>
-              <a href="/" className="btn btn-primary btn-block">Começar grátis</a>
+              <a href="/auth" className="btn btn-primary btn-block">Começar grátis</a>
             </div>
             <div className="price-card reveal reveal-delay-3">
               <div className="price-name">Elite</div>
@@ -273,7 +273,7 @@ export default function AcademiaLP() {
                 <li><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>API + integrações</li>
                 <li><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>Gerente de conta dedicado</li>
               </ul>
-              <a href="/" className="btn btn-ghost btn-block">Falar com vendas</a>
+              <a href="/auth" className="btn btn-ghost btn-block">Falar com vendas</a>
             </div>
           </div>
         </section>
@@ -284,7 +284,7 @@ export default function AcademiaLP() {
             <span className="eyebrow">VAMOS COMEÇAR</span>
             <h2 style={{marginTop:'14px'}}>Comece <em>30 dias grátis.</em></h2>
             <p>Sem cartão. Sem fidelidade. Cancele a qualquer momento.</p>
-            <a href="/" className="btn btn-primary btn-lg">
+            <a href="/auth" className="btn btn-primary btn-lg">
               Quero para minha academia
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
             </a>
