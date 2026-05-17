@@ -1,12 +1,73 @@
 "use client"
-
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { motion } from "framer-motion"
 import { Camera, ImageIcon, X, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { supabase } from "@/lib/supabase"
 
 export function PostScreen({ onClose }: { onClose: () => void }) {
   const [posted, setPosted] = useState(false)
+  const [preview, setPreview] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [erro, setErro] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setFile(f)
+    setPreview(URL.createObjectURL(f))
+  }
+
+  async function handlePost() {
+    if (!file) { setErro("Selecione uma foto primeiro"); return }
+    setLoading(true)
+    setErro("")
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("Não autenticado")
+
+      const { data: aluno } = await supabase
+        .from('alunos')
+        .select('id, academia_id')
+        .eq('profile_id', user.id)
+        .single()
+
+      if (!aluno) throw new Error("Aluno não encontrado")
+
+      // Upload da foto
+      const ext = file.name.split('.').pop()
+      const path = `${user.id}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('posts')
+        .upload(path, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = supabase.storage.from('posts').getPublicUrl(path)
+      const fotoUrl = urlData.publicUrl
+
+      // Cria o post
+      const { error: postError } = await supabase.from('posts').insert({
+        aluno_id: aluno.id,
+        academia_id: aluno.academia_id,
+        foto_url: fotoUrl,
+        tipo: 'foto',
+        total_fogo: 0,
+      })
+
+      if (postError) throw postError
+
+      setPosted(true)
+    } catch (e: any) {
+      setErro("Erro ao postar. Tente novamente.")
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (posted) {
     return (
@@ -34,7 +95,7 @@ export function PostScreen({ onClose }: { onClose: () => void }) {
             transition={{ delay: 0.5 }}
             className="mt-2 text-muted-foreground"
           >
-            Sua foto ja esta no feed
+            Sua foto já está no feed
           </motion.p>
           <motion.div
             initial={{ opacity: 0 }}
@@ -58,7 +119,6 @@ export function PostScreen({ onClose }: { onClose: () => void }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="mx-auto w-full max-w-[430px]">
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <button onClick={onClose}>
             <X className="h-6 w-6 text-foreground" />
@@ -67,29 +127,48 @@ export function PostScreen({ onClose }: { onClose: () => void }) {
           <div className="w-6" />
         </div>
 
-        {/* Camera area */}
-        <div className="aspect-square w-full bg-secondary">
-          <div className="flex h-full flex-col items-center justify-center gap-4 text-muted-foreground">
-            <Camera className="h-16 w-16" />
-            <p className="text-sm">Toque para tirar uma foto</p>
-          </div>
+        {/* Preview ou placeholder */}
+        <div
+          className="aspect-square w-full bg-secondary cursor-pointer overflow-hidden"
+          onClick={() => inputRef.current?.click()}
+        >
+          {preview ? (
+            <img src={preview} alt="preview" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-4 text-muted-foreground">
+              <Camera className="h-16 w-16" />
+              <p className="text-sm">Toque para escolher uma foto</p>
+            </div>
+          )}
         </div>
 
-        {/* Gallery option */}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
         <div className="border-t border-border p-4">
-          <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary py-3 text-sm text-foreground transition-colors hover:bg-secondary/80">
+          <button
+            onClick={() => inputRef.current?.click()}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary py-3 text-sm text-foreground transition-colors hover:bg-secondary/80"
+          >
             <ImageIcon className="h-5 w-5" />
             Escolher da galeria
           </button>
         </div>
 
-        {/* Post button */}
-        <div className="px-4">
+        {erro && <p className="px-4 text-center text-sm text-red-400">{erro}</p>}
+
+        <div className="px-4 pb-4">
           <Button
-            onClick={() => setPosted(true)}
+            onClick={handlePost}
+            disabled={loading || !file}
             className="h-14 w-full rounded-xl bg-primary text-lg font-bold text-primary-foreground neon-glow hover:bg-primary/90"
           >
-            Postar
+            {loading ? "Postando..." : "Postar"}
           </Button>
         </div>
       </div>
