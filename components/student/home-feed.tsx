@@ -1,13 +1,14 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Flame, MessageCircle, Camera, X, Trash2, MoreVertical, UserPlus, UserCheck } from "lucide-react"
+import { Flame, MessageCircle, Camera, X, Trash2, MoreVertical, UserPlus, UserCheck, Play } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { supabase } from "@/lib/supabase"
 
 type Post = {
   id: string
   foto_url: string | null
+  video_url: string | null
   tipo: string
   descricao_automatica: string | null
   total_fogo: number
@@ -62,7 +63,7 @@ export function HomeFeed() {
 
       let postsQuery = supabase
         .from('posts')
-        .select('id, foto_url, tipo, descricao_automatica, total_fogo, created_at, aluno_id, alunos(profiles(nome, foto_url))')
+        .select('id, foto_url, video_url, tipo, descricao_automatica, total_fogo, created_at, aluno_id, alunos(profiles(nome, foto_url))')
         .order('created_at', { ascending: false })
         .limit(20)
 
@@ -181,7 +182,6 @@ export function HomeFeed() {
 
   return (
     <div className="flex flex-col">
-      {/* Modal perfil de outro aluno */}
       {viewingProfile && currentAlunoId && (
         <AlunoProfileModal
           profile={viewingProfile}
@@ -191,24 +191,27 @@ export function HomeFeed() {
         />
       )}
 
-      {/* Story fullscreen */}
+      {/* Story fullscreen 9:16 sem barra */}
       {activeStory && activeStoryIndex !== null && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col">
-          <div className="flex gap-1 px-4 pt-10 pb-2">
+        <div className="fixed inset-0 z-50 bg-black">
+          {/* Barra de progresso */}
+          <div className="absolute top-0 left-0 right-0 z-20 flex gap-1 px-3 pt-12 pb-2">
             {stories.map((_, i) => (
               <div key={i} className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-white rounded-full transition-none"
-                  style={{ width: i < activeStoryIndex ? '100%' : i === activeStoryIndex ? `${progress}%` : '0%' }}
+                  className="h-full bg-white rounded-full"
+                  style={{ width: i < activeStoryIndex ? '100%' : i === activeStoryIndex ? `${progress}%` : '0%', transition: 'none' }}
                 />
               </div>
             ))}
           </div>
-          <div className="flex items-center justify-between px-4 py-2">
+
+          {/* Header */}
+          <div className="absolute top-14 left-0 right-0 z-20 flex items-center justify-between px-4 py-2">
             <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10 border-2 border-primary overflow-hidden">
+              <Avatar className="h-9 w-9 border-2 border-white overflow-hidden">
                 {activeStory.profiles.foto_url && <AvatarImage src={activeStory.profiles.foto_url} className="object-cover" />}
-                <AvatarFallback className="bg-secondary text-foreground text-sm font-bold">
+                <AvatarFallback className="bg-secondary text-foreground text-xs font-bold">
                   {activeStory.profiles.nome.split(" ").map((n: string) => n[0]).join("")}
                 </AvatarFallback>
               </Avatar>
@@ -216,11 +219,23 @@ export function HomeFeed() {
             </div>
             <button onClick={closeStory}><X className="h-6 w-6 text-white" /></button>
           </div>
-          <div className="flex-1 flex relative">
-            <button className="absolute left-0 top-0 bottom-0 w-1/3 z-10" onClick={() => { if (activeStoryIndex > 0) openStory(activeStoryIndex - 1); else closeStory() }} />
-            <img src={activeStory.foto_url} alt="story" className="w-full h-full object-contain" />
-            <button className="absolute right-0 top-0 bottom-0 w-1/3 z-10" onClick={() => { if (activeStoryIndex < stories.length - 1) openStory(activeStoryIndex + 1); else closeStory() }} />
-          </div>
+
+          {/* Imagem 9:16 */}
+          <img
+            src={activeStory.foto_url}
+            alt="story"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+
+          {/* Navegação por toque */}
+          <button
+            className="absolute left-0 top-0 bottom-0 w-1/3 z-10"
+            onClick={() => { if (activeStoryIndex > 0) openStory(activeStoryIndex - 1); else closeStory() }}
+          />
+          <button
+            className="absolute right-0 top-0 bottom-0 w-1/3 z-10"
+            onClick={() => { if (activeStoryIndex < stories.length - 1) openStory(activeStoryIndex + 1); else closeStory() }}
+          />
         </div>
       )}
 
@@ -296,23 +311,15 @@ function AlunoProfileModal({ profile, currentAlunoId, currentAcademiaId, onClose
       .eq('seguidor_id', currentAlunoId)
       .eq('seguido_id', profile.aluno_id)
       .single()
-      .then(({ data }) => {
-        setSeguindo(!!data)
-        setLoading(false)
-      })
+      .then(({ data }) => { setSeguindo(!!data); setLoading(false) })
   }, [profile.aluno_id, currentAlunoId])
 
   async function handleSeguir() {
     if (seguindo) {
-      await supabase.from('seguidores').delete()
-        .eq('seguidor_id', currentAlunoId)
-        .eq('seguido_id', profile.aluno_id)
+      await supabase.from('seguidores').delete().eq('seguidor_id', currentAlunoId).eq('seguido_id', profile.aluno_id)
       setSeguindo(false)
     } else {
-      await supabase.from('seguidores').insert({
-        seguidor_id: currentAlunoId,
-        seguido_id: profile.aluno_id,
-      })
+      await supabase.from('seguidores').insert({ seguidor_id: currentAlunoId, seguido_id: profile.aluno_id })
       setSeguindo(true)
     }
   }
@@ -324,7 +331,6 @@ function AlunoProfileModal({ profile, currentAlunoId, currentAcademiaId, onClose
         <span className="font-semibold text-foreground">{profile.nome.split(" ")[0]}</span>
         <div className="w-6" />
       </div>
-
       <div className="px-4 pt-6">
         <div className="flex items-center gap-4">
           <Avatar className="h-20 w-20 border-2 border-primary overflow-hidden">
@@ -342,7 +348,6 @@ function AlunoProfileModal({ profile, currentAlunoId, currentAcademiaId, onClose
             </div>
           </div>
         </div>
-
         <div className="mt-4 grid grid-cols-3 gap-3">
           <div className="glass rounded-xl p-3 text-center">
             <p className="text-lg font-bold text-foreground">{profile.total_posts}</p>
@@ -357,21 +362,12 @@ function AlunoProfileModal({ profile, currentAlunoId, currentAcademiaId, onClose
             <p className="text-xs text-muted-foreground">Seguindo</p>
           </div>
         </div>
-
         {!loading && (
           <button
             onClick={handleSeguir}
-            className={`mt-4 w-full h-12 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all ${
-              seguindo
-                ? "bg-secondary text-foreground border border-border"
-                : "bg-primary text-primary-foreground neon-glow"
-            }`}
+            className={`mt-4 w-full h-12 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all ${seguindo ? "bg-secondary text-foreground border border-border" : "bg-primary text-primary-foreground neon-glow"}`}
           >
-            {seguindo ? (
-              <><UserCheck className="h-4 w-4" /> Seguindo</>
-            ) : (
-              <><UserPlus className="h-4 w-4" /> Seguir</>
-            )}
+            {seguindo ? <><UserCheck className="h-4 w-4" /> Seguindo</> : <><UserPlus className="h-4 w-4" /> Seguir</>}
           </button>
         )}
       </div>
@@ -409,20 +405,13 @@ function FeedPost({ post, isOwn, onDelete, onOpenProfile }: {
       .select('id, texto, created_at, aluno_id, alunos(profiles(nome, foto_url))')
       .eq('post_id', post.id)
       .order('created_at', { ascending: true })
-    if (data) setComentarios(data.map((c: any) => ({
-      ...c,
-      profiles: c.alunos?.profiles || { nome: 'Aluno', foto_url: null }
-    })))
+    if (data) setComentarios(data.map((c: any) => ({ ...c, profiles: c.alunos?.profiles || { nome: 'Aluno', foto_url: null } })))
   }
 
   async function handleSendComment() {
     if (!textoComment.trim() || !currentAlunoId) return
     setSendingComment(true)
-    await supabase.from('comentarios').insert({
-      post_id: post.id,
-      aluno_id: currentAlunoId,
-      texto: textoComment.trim()
-    })
+    await supabase.from('comentarios').insert({ post_id: post.id, aluno_id: currentAlunoId, texto: textoComment.trim() })
     setTextoComment("")
     await fetchComentarios()
     setSendingComment(false)
@@ -433,7 +422,6 @@ function FeedPost({ post, isOwn, onDelete, onOpenProfile }: {
     if (!user) return
     const { data: aluno } = await supabase.from('alunos').select('id').eq('profile_id', user.id).single()
     if (!aluno) return
-
     if (!fired) {
       await supabase.from('reacoes').insert({ post_id: post.id, aluno_id: aluno.id })
       await supabase.from('posts').update({ total_fogo: fireCount + 1 }).eq('id', post.id)
@@ -455,9 +443,7 @@ function FeedPost({ post, isOwn, onDelete, onOpenProfile }: {
           </div>
           <div className="flex-1">
             <p className="text-sm font-semibold text-primary">{post.descricao_automatica}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {new Date(post.created_at).toLocaleDateString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{new Date(post.created_at).toLocaleDateString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
           </div>
         </div>
         <div className="mt-3 flex items-center gap-4">
@@ -466,8 +452,7 @@ function FeedPost({ post, isOwn, onDelete, onOpenProfile }: {
             <span className={fired ? "text-primary" : "text-muted-foreground"}>{fireCount}</span>
           </button>
           <button onClick={() => setShowComments(!showComments)} className="flex items-center gap-1 text-sm text-muted-foreground">
-            <MessageCircle className="h-4 w-4" />
-            <span>{comentarios.length}</span>
+            <MessageCircle className="h-4 w-4" /><span>{comentarios.length}</span>
           </button>
         </div>
       </div>
@@ -476,13 +461,23 @@ function FeedPost({ post, isOwn, onDelete, onOpenProfile }: {
 
   return (
     <div className="mb-4">
-      {post.foto_url ? (
+      {/* Foto ou vídeo */}
+      {post.video_url ? (
+        <video
+          src={post.video_url}
+          className="aspect-square w-full object-cover"
+          controls
+          playsInline
+          loop
+        />
+      ) : post.foto_url ? (
         <img src={post.foto_url} alt="post" className="aspect-square w-full object-cover" />
       ) : (
         <div className="aspect-square w-full bg-secondary flex items-center justify-center">
           <Camera className="h-12 w-12 text-muted-foreground" />
         </div>
       )}
+
       <div className="px-4 py-3">
         <div className="flex items-center justify-between">
           <button onClick={onOpenProfile} className="flex items-center gap-3">
@@ -496,17 +491,11 @@ function FeedPost({ post, isOwn, onDelete, onOpenProfile }: {
           </button>
           {isOwn && (
             <div className="relative">
-              <button onClick={() => setShowMenu(!showMenu)}>
-                <MoreVertical className="h-5 w-5 text-muted-foreground" />
-              </button>
+              <button onClick={() => setShowMenu(!showMenu)}><MoreVertical className="h-5 w-5 text-muted-foreground" /></button>
               {showMenu && (
                 <div className="absolute right-0 top-6 z-10 rounded-xl border border-border bg-card p-2 shadow-lg">
-                  <button
-                    onClick={() => { onDelete(); setShowMenu(false) }}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-400 hover:bg-secondary"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Excluir post
+                  <button onClick={() => { onDelete(); setShowMenu(false) }} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-400 hover:bg-secondary">
+                    <Trash2 className="h-4 w-4" /> Excluir post
                   </button>
                 </div>
               )}
@@ -519,11 +508,9 @@ function FeedPost({ post, isOwn, onDelete, onOpenProfile }: {
             <span className={fired ? "text-primary" : "text-muted-foreground"}>{fireCount}</span>
           </button>
           <button onClick={() => setShowComments(!showComments)} className="flex items-center gap-1 text-sm text-muted-foreground">
-            <MessageCircle className="h-4 w-4" />
-            <span>{comentarios.length}</span>
+            <MessageCircle className="h-4 w-4" /><span>{comentarios.length}</span>
           </button>
         </div>
-
         {showComments && (
           <div className="mt-3 flex flex-col gap-2">
             {comentarios.length === 0 ? (
@@ -545,20 +532,8 @@ function FeedPost({ post, isOwn, onDelete, onOpenProfile }: {
               ))
             )}
             <div className="flex items-center gap-2 mt-1">
-              <input
-                value={textoComment}
-                onChange={(e) => setTextoComment(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendComment()}
-                placeholder="Adicionar comentário..."
-                className="flex-1 rounded-lg bg-secondary px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none border border-border focus:border-primary"
-              />
-              <button
-                onClick={handleSendComment}
-                disabled={sendingComment || !textoComment.trim()}
-                className="text-primary disabled:opacity-50 text-xs font-semibold"
-              >
-                Publicar
-              </button>
+              <input value={textoComment} onChange={(e) => setTextoComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendComment()} placeholder="Adicionar comentário..." className="flex-1 rounded-lg bg-secondary px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none border border-border focus:border-primary" />
+              <button onClick={handleSendComment} disabled={sendingComment || !textoComment.trim()} className="text-primary disabled:opacity-50 text-xs font-semibold">Publicar</button>
             </div>
           </div>
         )}
