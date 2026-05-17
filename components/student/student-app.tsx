@@ -1,6 +1,5 @@
 "use client"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { OnboardingScreen } from "./onboarding-screen"
 import { HomeFeed } from "./home-feed"
 import { PostScreen } from "./post-screen"
@@ -11,21 +10,51 @@ import { ProfileScreen } from "./profile-screen"
 import { NutritionScreen } from "./nutrition-screen"
 import { BottomNav } from "./bottom-nav"
 import { WeekSetupScreen } from "./week-setup-screen"
+import { supabase } from "@/lib/supabase"
 
-type Screen = "onboarding" | "weekSetup" | "feed" | "workout" | "post" | "ranking" | "profile" | "evolution" | "nutrition"
+type Screen = "loading" | "onboarding" | "weekSetup" | "feed" | "workout" | "post" | "ranking" | "profile" | "evolution" | "nutrition"
 
 export function StudentApp({ onSwitchToAcademy }: { onSwitchToAcademy: () => void }) {
-const [screen, setScreen] = useState<Screen>(() => {
-    if (typeof window !== 'undefined') {
-      const done = localStorage.getItem('gymflow_onboarding_done')
-      const schedule = localStorage.getItem('gymflow_schedule')
-      if (done && schedule) return "feed"
-      if (done) return "weekSetup"
-    }
-    return "onboarding"
-  })
+  const [screen, setScreen] = useState<Screen>("loading")
   const [onboardingStep, setOnboardingStep] = useState(1)
   const [showPost, setShowPost] = useState(false)
+
+  useEffect(() => {
+    async function checkStatus() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setScreen("onboarding"); return }
+
+      // Verifica se já tem aluno cadastrado
+      const { data: aluno } = await supabase
+        .from('alunos')
+        .select('id')
+        .eq('profile_id', user.id)
+        .single()
+
+      if (!aluno) { setScreen("onboarding"); return }
+
+      // Verifica se já tem dias de treino configurados
+      const { data: dias } = await supabase
+        .from('dias_treino')
+        .select('id')
+        .eq('aluno_id', aluno.id)
+        .limit(1)
+
+      if (!dias || dias.length === 0) { setScreen("weekSetup"); return }
+
+      setScreen("feed")
+    }
+    checkStatus()
+  }, [])
+
+  if (screen === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
   if (screen === "onboarding") {
     return (
       <OnboardingScreen
@@ -34,7 +63,6 @@ const [screen, setScreen] = useState<Screen>(() => {
           if (onboardingStep < 3) {
             setOnboardingStep(onboardingStep + 1)
           } else {
-            localStorage.setItem('gymflow_onboarding_done', 'true')
             setScreen("weekSetup")
           }
         }}
