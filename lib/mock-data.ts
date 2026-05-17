@@ -63,7 +63,19 @@ export const mockMonthlyRevenue = [
   { month: 'Mai', revenue: 18200 },
 ]
 
-export const muscleGroups = ['Peito', 'Costas', 'Perna', 'Ombro', 'Biceps', 'Triceps', 'Abdomen', 'Fullbody'] as const
+export const muscleGroups = [
+  'Peito',
+  'Costas',
+  'Perna',
+  'Ombro',
+  'Biceps',
+  'Triceps',
+  'Abdomen',
+  'Fullbody',
+  'Peito + Triceps',
+  'Costas + Biceps',
+  'Perna + Ombro',
+] as const
 
 export const weekDays = [
   { key: 'seg', label: 'Segunda' },
