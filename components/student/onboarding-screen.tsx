@@ -69,11 +69,9 @@ export function OnboardingScreen({
       }
       setLoading(true)
       setErro("")
-
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) throw new Error("Usuário não encontrado")
-
         let fotoUrl = null
         if (avatarFile) {
           const ext = avatarFile.name.split('.').pop()
@@ -88,7 +86,6 @@ export function OnboardingScreen({
             fotoUrl = urlData.publicUrl
           }
         }
-
         await supabase.from('profiles').upsert({
           id: user.id,
           tipo: 'aluno',
@@ -98,13 +95,11 @@ export function OnboardingScreen({
           cep: cep || null,
           cidade: cidade || null,
         }, { onConflict: 'id' })
-
         const { data: alunoExistente } = await supabase
           .from('alunos')
           .select('id')
           .eq('profile_id', user.id)
           .single()
-
         if (!alunoExistente) {
           const academiaId = localStorage.getItem('academia_id') || null
           await supabase.from('alunos').insert({
@@ -119,7 +114,6 @@ export function OnboardingScreen({
             localStorage.removeItem('academia_slug')
           }
         }
-
         onNext()
       } catch (e: any) {
         setErro("Erro ao salvar. Tente novamente.")
@@ -129,7 +123,6 @@ export function OnboardingScreen({
       }
       return
     }
-
     if (step === 1 && !name.trim()) {
       setErro("Digite seu nome")
       return
@@ -137,7 +130,6 @@ export function OnboardingScreen({
     setErro("")
     onNext()
   }
-
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="mx-auto flex w-full max-w-[430px] flex-1 flex-col px-6 py-8">
