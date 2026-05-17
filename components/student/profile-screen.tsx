@@ -15,6 +15,7 @@ type Aluno = {
   id: string
   streak: number
   objetivo: string
+  academia_id: string | null
 }
 
 type PR = {
@@ -30,6 +31,8 @@ export function ProfileScreen({ onNavigate }: { onNavigate: (screen: string) => 
   const [prs, setPrs] = useState<PR[]>([])
   const [posts, setPosts] = useState<any[]>([])
   const [treinos, setTreinos] = useState<any[]>([])
+  const [seguidores, setSeguidores] = useState(0)
+  const [seguindo, setSeguindo] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -45,7 +48,7 @@ export function ProfileScreen({ onNavigate }: { onNavigate: (screen: string) => 
 
       const { data: al } = await supabase
         .from('alunos')
-        .select('id, streak, objetivo')
+        .select('id, streak, objetivo, academia_id')
         .eq('profile_id', user.id)
         .single()
 
@@ -71,9 +74,21 @@ export function ProfileScreen({ onNavigate }: { onNavigate: (screen: string) => 
           .order('data_treino', { ascending: false })
           .limit(10)
 
+        const { count: segCount } = await supabase
+          .from('seguidores')
+          .select('*', { count: 'exact', head: true })
+          .eq('seguido_id', al.id)
+
+        const { count: seguCount } = await supabase
+          .from('seguidores')
+          .select('*', { count: 'exact', head: true })
+          .eq('seguidor_id', al.id)
+
         if (recordes) setPrs(recordes as any)
         if (postsData) setPosts(postsData)
         if (treinosData) setTreinos(treinosData)
+        setSeguidores(segCount || 0)
+        setSeguindo(seguCount || 0)
       }
 
       setLoading(false)
@@ -109,13 +124,9 @@ export function ProfileScreen({ onNavigate }: { onNavigate: (screen: string) => 
         </div>
 
         <div className="flex items-center gap-4">
-         <Avatar className="h-20 w-20 border-2 border-primary overflow-hidden">
+          <Avatar className="h-20 w-20 border-2 border-primary overflow-hidden">
             {profile?.foto_url && (
-              <AvatarImage 
-                src={profile.foto_url} 
-                alt={profile.nome}
-                className="h-full w-full object-cover"
-              />
+              <AvatarImage src={profile.foto_url} alt={profile.nome} className="object-cover" />
             )}
             <AvatarFallback className="bg-secondary text-foreground text-xl font-bold">
               {iniciais}
@@ -131,18 +142,19 @@ export function ProfileScreen({ onNavigate }: { onNavigate: (screen: string) => 
           </div>
         </div>
 
+        {/* Stats — posts, seguidores, seguindo */}
         <div className="mt-4 grid grid-cols-3 gap-3">
-          <div className="glass rounded-xl p-3 text-center">
-            <p className="text-lg font-bold text-foreground">{treinos.length}</p>
-            <p className="text-xs text-muted-foreground">Treinos</p>
-          </div>
           <div className="glass rounded-xl p-3 text-center">
             <p className="text-lg font-bold text-foreground">{posts.length}</p>
             <p className="text-xs text-muted-foreground">Posts</p>
           </div>
           <div className="glass rounded-xl p-3 text-center">
-            <p className="text-lg font-bold text-foreground">{prs.length}</p>
-            <p className="text-xs text-muted-foreground">PRs</p>
+            <p className="text-lg font-bold text-foreground">{seguidores}</p>
+            <p className="text-xs text-muted-foreground">Seguidores</p>
+          </div>
+          <div className="glass rounded-xl p-3 text-center">
+            <p className="text-lg font-bold text-foreground">{seguindo}</p>
+            <p className="text-xs text-muted-foreground">Seguindo</p>
           </div>
         </div>
 
