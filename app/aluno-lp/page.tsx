@@ -311,9 +311,9 @@ export default function AlunoLP() {
             <h2 style={{marginTop:'14px'}}>Comece agora<br />— <em>é grátis.</em></h2>
             <p>Crie sua conta em 30 segundos. Use mesmo se sua academia ainda não usa GymFlow.</p>
             <a href="/" className="btn btn-primary btn-lg btn-block">
-              Baixar grátis
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 4v12M5 11l7 7 7-7"/></svg>
-            </a>
+  Usar no navegador — grátis
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+</a>
             <div className="store-btns" style={{marginTop:'14px'}}>
               <a className="store-btn" href="/"><span><span className="sub">Baixar na</span><span className="main">App Store</span></span></a>
               <a className="store-btn" href="/"><span><span className="sub">Baixar no</span><span className="main">Google Play</span></span></a>
