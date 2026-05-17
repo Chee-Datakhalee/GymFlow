@@ -13,6 +13,23 @@ export function ProfileScreen({ onNavigate }: { onNavigate: (screen: string) => 
     <div className="flex flex-col pb-4">
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-sm font-medium text-muted-foreground">Perfil</span>
+          <button
+            onClick={async () => {
+              const { supabase } = await import("@/lib/supabase")
+              await supabase.auth.signOut()
+              localStorage.removeItem('gymflow_onboarding_done')
+              localStorage.removeItem('gymflow_schedule')
+              localStorage.removeItem('academia_id')
+              localStorage.removeItem('academia_slug')
+              window.location.href = '/'
+            }}
+            className="text-sm text-red-400 hover:text-red-300 transition-colors"
+          >
+            Sair
+          </button>
+        </div>
         <div className="flex items-center gap-4">
           <Avatar className="h-20 w-20 border-2 border-primary">
             <AvatarFallback className="bg-secondary text-foreground text-xl font-bold">
