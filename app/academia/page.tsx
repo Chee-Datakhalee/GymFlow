@@ -115,7 +115,7 @@ export default function AcademiaLP() {
             <div className="hero-tag">Para academias</div>
             <h1>Sua academia no<br /><em>próximo nível.</em></h1>
             <p className="hero-sub">Gerencie alunos, reduza cancelamentos e engaje sua comunidade com tecnologia de ponta.</p>
-           <a href="/" className="btn btn-primary btn-lg">
+            <a href="/" className="btn btn-primary btn-lg">
               Quero para minha academia
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
             </a>
