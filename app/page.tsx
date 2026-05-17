@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase"
 
 export default function Home() {
   const [mode, setMode] = useState<"student" | "academy">("student")
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true) 
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
