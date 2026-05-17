@@ -9,9 +9,15 @@ import { supabase } from "@/lib/supabase"
 type Mode = "login" | "cadastro"
 type Tipo = "aluno" | "academia"
 
-export function AuthScreen({ onAuth }: { onAuth: (tipo: Tipo) => void }) {
-  const [mode, setMode] = useState<Mode>("login")
-  const [tipo, setTipo] = useState<Tipo>("aluno")
+export function AuthScreen({
+  onAuth,
+  soAluno = false,
+}: {
+  onAuth: (tipo: Tipo) => void
+  soAluno?: boolean
+}) {
+  const [mode, setMode] = useState<Mode>("cadastro")
+  const [tipo, setTipo] = useState<Tipo>(soAluno ? "aluno" : "aluno")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -19,14 +25,37 @@ export function AuthScreen({ onAuth }: { onAuth: (tipo: Tipo) => void }) {
 
   async function handleSubmit() {
     setErro("")
+    if (!email || !password) {
+      setErro("Preencha email e senha")
+      return
+    }
+    if (password.length < 6) {
+      setErro("Senha mínimo 6 caracteres")
+      return
+    }
     setLoading(true)
+
     if (mode === "cadastro") {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { tipo } }
       })
       if (error) { setErro(error.message); setLoading(false); return }
+
+      // Se vier de link de academia, vincula o aluno
+      if (tipo === "aluno" && data.user) {
+        const academiaId = localStorage.getItem('academia_id')
+        if (academiaId) {
+          await supabase.from('alunos').insert({
+            profile_id: data.user.id,
+            academia_id: academiaId,
+          })
+          localStorage.removeItem('academia_id')
+          localStorage.removeItem('academia_slug')
+        }
+      }
+
       onAuth(tipo)
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -40,18 +69,20 @@ export function AuthScreen({ onAuth }: { onAuth: (tipo: Tipo) => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="w-full max-w-md px-6">
-        {/* Logo */}
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary neon-glow">
-            <Dumbbell className="h-8 w-8 text-primary-foreground" />
+
+        {!soAluno && (
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary neon-glow">
+              <Dumbbell className="h-8 w-8 text-primary-foreground" />
+            </div>
+            <h1 className="text-3xl font-bold text-foreground">
+              Gym<span className="text-primary">Flow</span>
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {mode === "login" ? "Bem vindo de volta" : "Crie sua conta"}
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Gym<span className="text-primary">Flow</span>
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "login" ? "Bem vindo de volta" : "Crie sua conta"}
-          </p>
-        </div>
+        )}
 
         {/* Toggle Login/Cadastro */}
         <div className="mb-6 flex rounded-xl bg-secondary p-1">
@@ -73,8 +104,8 @@ export function AuthScreen({ onAuth }: { onAuth: (tipo: Tipo) => void }) {
           </button>
         </div>
 
-        {/* Escolha aluno ou academia (só no cadastro) */}
-        {mode === "cadastro" && (
+        {/* Escolha aluno ou academia (só no cadastro e se não for soAluno) */}
+        {mode === "cadastro" && !soAluno && (
           <div className="mb-4 flex gap-3">
             <button
               onClick={() => setTipo("aluno")}
