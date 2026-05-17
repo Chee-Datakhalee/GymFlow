@@ -6,6 +6,7 @@ import { Camera, User, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { supabase } from "@/lib/supabase"
 
 const goals = ["Hipertrofia", "Emagrecimento", "Condicionamento"]
 
@@ -22,6 +23,84 @@ export function OnboardingScreen({
   const [weight, setWeight] = useState("")
   const [height, setHeight] = useState("")
   const [selectedGoal, setSelectedGoal] = useState("")
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [erro, setErro] = useState("")
+
+  function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+  }
+
+  async function handleNext() {
+    if (step === 3) {
+      if (!selectedGoal) {
+        setErro("Selecione um objetivo")
+        return
+      }
+      setLoading(true)
+      setErro("")
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error("Usuário não encontrado")
+
+        // Upload do avatar se tiver
+        let fotoUrl = null
+        if (avatarFile) {
+          const ext = avatarFile.name.split('.').pop()
+          const path = `${user.id}/avatar.${ext}`
+          const { error: uploadError } = await supabase.storage
+            .from('Avatar')
+            .upload(path, avatarFile, { upsert: true })
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage
+              .from('Avatar')
+              .getPublicUrl(path)
+            fotoUrl = urlData.publicUrl
+          }
+        }
+
+        // Atualiza nome no profile
+        await supabase
+          .from('profiles')
+          .update({ nome: name, foto_url: fotoUrl })
+          .eq('id', user.id)
+
+        // Cria registro na tabela alunos
+        const { error: alunoError } = await supabase
+          .from('alunos')
+          .insert({
+            profile_id: user.id,
+            academia_id: null,
+            peso: weight ? parseFloat(weight) : null,
+            altura: height ? parseFloat(height) : null,
+            objetivo: selectedGoal.toLowerCase(),
+          })
+
+        if (alunoError) throw alunoError
+
+        onNext()
+      } catch (e: any) {
+        setErro("Erro ao salvar. Tente novamente.")
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
+    // Steps 1 e 2 só avança
+    if (step === 1 && !name.trim()) {
+      setErro("Digite seu nome")
+      return
+    }
+    setErro("")
+    onNext()
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -61,12 +140,17 @@ export function OnboardingScreen({
             {step === 1 && (
               <div className="flex flex-col gap-6">
                 {/* Avatar */}
-                <button className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border-2 border-dashed border-primary/50 bg-secondary transition-colors hover:border-primary">
-                  <div className="flex flex-col items-center gap-1">
-                    <Camera className="h-6 w-6 text-primary" />
-                    <span className="text-xs text-muted-foreground">Foto</span>
-                  </div>
-                </button>
+                <label className="mx-auto flex h-28 w-28 cursor-pointer items-center justify-center rounded-full border-2 border-dashed border-primary/50 bg-secondary transition-colors hover:border-primary overflow-hidden">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-1">
+                      <Camera className="h-6 w-6 text-primary" />
+                      <span className="text-xs text-muted-foreground">Foto</span>
+                    </div>
+                  )}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                </label>
 
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="name" className="text-muted-foreground">Nome completo</Label>
@@ -138,12 +222,17 @@ export function OnboardingScreen({
           </motion.div>
         </AnimatePresence>
 
+        {erro && (
+          <p className="mt-2 text-center text-sm text-red-400">{erro}</p>
+        )}
+
         <div className="mt-8 flex flex-col gap-3">
           <Button
-            onClick={onNext}
+            onClick={handleNext}
+            disabled={loading}
             className="h-14 w-full rounded-xl bg-primary text-lg font-bold text-primary-foreground neon-glow hover:bg-primary/90"
           >
-            {step === 3 ? "Comecar" : "Continuar"}
+            {loading ? "Salvando..." : step === 3 ? "Comecar" : "Continuar"}
           </Button>
           <button
             onClick={onSwitchToAcademy}
