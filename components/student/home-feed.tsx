@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Flame, MessageCircle, Camera, X, Trash2, MoreVertical } from "lucide-react"
+import { Flame, MessageCircle, Camera, X, Trash2, MoreVertical, UserPlus, UserCheck } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { supabase } from "@/lib/supabase"
 
@@ -23,13 +23,25 @@ type Story = {
   profiles: { nome: string; foto_url: string | null }
 }
 
+type AlunoProfile = {
+  aluno_id: string
+  nome: string
+  foto_url: string | null
+  objetivo: string | null
+  streak: number
+  total_posts: number
+  total_seguidores: number
+}
+
 export function HomeFeed() {
   const [posts, setPosts] = useState<Post[]>([])
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
   const [currentAlunoId, setCurrentAlunoId] = useState<string | null>(null)
+  const [currentAcademiaId, setCurrentAcademiaId] = useState<string | null>(null)
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null)
   const [progress, setProgress] = useState(0)
+  const [viewingProfile, setViewingProfile] = useState<AlunoProfile | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const progressRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -46,6 +58,7 @@ export function HomeFeed() {
 
       const aId = aluno?.academia_id || null
       setCurrentAlunoId(aluno?.id || null)
+      setCurrentAcademiaId(aId)
 
       let postsQuery = supabase
         .from('posts')
@@ -81,6 +94,38 @@ export function HomeFeed() {
     }
     fetchFeed()
   }, [])
+
+  async function openProfile(alunoId: string) {
+    if (alunoId === currentAlunoId) return
+
+    const { data: aluno } = await supabase
+      .from('alunos')
+      .select('id, streak, objetivo, academia_id, profiles(nome, foto_url)')
+      .eq('id', alunoId)
+      .single()
+
+    if (!aluno) return
+
+    const { count: totalPosts } = await supabase
+      .from('posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('aluno_id', alunoId)
+
+    const { count: totalSeguidores } = await supabase
+      .from('seguidores')
+      .select('*', { count: 'exact', head: true })
+      .eq('seguido_id', alunoId)
+
+    setViewingProfile({
+      aluno_id: aluno.id,
+      nome: (aluno as any).profiles?.nome || 'Aluno',
+      foto_url: (aluno as any).profiles?.foto_url || null,
+      objetivo: aluno.objetivo,
+      streak: aluno.streak || 0,
+      total_posts: totalPosts || 0,
+      total_seguidores: totalSeguidores || 0,
+    })
+  }
 
   function openStory(index: number) {
     setActiveStoryIndex(index)
@@ -136,65 +181,51 @@ export function HomeFeed() {
 
   return (
     <div className="flex flex-col">
-      {/* Story fullscreen com timer */}
+      {/* Modal perfil de outro aluno */}
+      {viewingProfile && currentAlunoId && (
+        <AlunoProfileModal
+          profile={viewingProfile}
+          currentAlunoId={currentAlunoId}
+          currentAcademiaId={currentAcademiaId}
+          onClose={() => setViewingProfile(null)}
+        />
+      )}
+
+      {/* Story fullscreen */}
       {activeStory && activeStoryIndex !== null && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
-          {/* Barra de progresso */}
           <div className="flex gap-1 px-4 pt-10 pb-2">
             {stories.map((_, i) => (
               <div key={i} className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-white rounded-full transition-none"
-                  style={{
-                    width: i < activeStoryIndex ? '100%' : i === activeStoryIndex ? `${progress}%` : '0%'
-                  }}
+                  style={{ width: i < activeStoryIndex ? '100%' : i === activeStoryIndex ? `${progress}%` : '0%' }}
                 />
               </div>
             ))}
           </div>
-
           <div className="flex items-center justify-between px-4 py-2">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10 border-2 border-primary overflow-hidden">
-                {activeStory.profiles.foto_url && (
-                  <AvatarImage src={activeStory.profiles.foto_url} className="object-cover" />
-                )}
+                {activeStory.profiles.foto_url && <AvatarImage src={activeStory.profiles.foto_url} className="object-cover" />}
                 <AvatarFallback className="bg-secondary text-foreground text-sm font-bold">
                   {activeStory.profiles.nome.split(" ").map((n: string) => n[0]).join("")}
                 </AvatarFallback>
               </Avatar>
               <span className="text-sm font-semibold text-white">{activeStory.profiles.nome}</span>
             </div>
-            <button onClick={closeStory}>
-              <X className="h-6 w-6 text-white" />
-            </button>
+            <button onClick={closeStory}><X className="h-6 w-6 text-white" /></button>
           </div>
-
-          {/* Navegação por toque */}
           <div className="flex-1 flex relative">
-            <button
-              className="absolute left-0 top-0 bottom-0 w-1/3 z-10"
-              onClick={() => {
-                if (activeStoryIndex > 0) openStory(activeStoryIndex - 1)
-                else closeStory()
-              }}
-            />
+            <button className="absolute left-0 top-0 bottom-0 w-1/3 z-10" onClick={() => { if (activeStoryIndex > 0) openStory(activeStoryIndex - 1); else closeStory() }} />
             <img src={activeStory.foto_url} alt="story" className="w-full h-full object-contain" />
-            <button
-              className="absolute right-0 top-0 bottom-0 w-1/3 z-10"
-              onClick={() => {
-                if (activeStoryIndex < stories.length - 1) openStory(activeStoryIndex + 1)
-                else closeStory()
-              }}
-            />
+            <button className="absolute right-0 top-0 bottom-0 w-1/3 z-10" onClick={() => { if (activeStoryIndex < stories.length - 1) openStory(activeStoryIndex + 1); else closeStory() }} />
           </div>
         </div>
       )}
 
       <div className="sticky top-0 z-10 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl">
-        <h1 className="text-xl font-bold text-foreground">
-          Gym<span className="text-primary">Flow</span>
-        </h1>
+        <h1 className="text-xl font-bold text-foreground">Gym<span className="text-primary">Flow</span></h1>
       </div>
 
       {/* Stories */}
@@ -217,9 +248,7 @@ export function HomeFeed() {
                   </AvatarFallback>
                 </Avatar>
               </div>
-              <span className="max-w-[64px] truncate text-xs text-muted-foreground">
-                {story.profiles.nome.split(" ")[0]}
-              </span>
+              <span className="max-w-[64px] truncate text-xs text-muted-foreground">{story.profiles.nome.split(" ")[0]}</span>
             </button>
           ))
         )}
@@ -242,6 +271,7 @@ export function HomeFeed() {
               post={post}
               isOwn={post.aluno_id === currentAlunoId}
               onDelete={() => handleDeletePost(post.id)}
+              onOpenProfile={() => openProfile(post.aluno_id)}
             />
           ))}
         </div>
@@ -250,10 +280,110 @@ export function HomeFeed() {
   )
 }
 
-function FeedPost({ post, isOwn, onDelete }: {
+function AlunoProfileModal({ profile, currentAlunoId, currentAcademiaId, onClose }: {
+  profile: AlunoProfile
+  currentAlunoId: string
+  currentAcademiaId: string | null
+  onClose: () => void
+}) {
+  const [seguindo, setSeguindo] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('seguidores')
+      .select('id')
+      .eq('seguidor_id', currentAlunoId)
+      .eq('seguido_id', profile.aluno_id)
+      .single()
+      .then(({ data }) => {
+        setSeguindo(!!data)
+        setLoading(false)
+      })
+  }, [profile.aluno_id, currentAlunoId])
+
+  async function handleSeguir() {
+    if (seguindo) {
+      await supabase.from('seguidores').delete()
+        .eq('seguidor_id', currentAlunoId)
+        .eq('seguido_id', profile.aluno_id)
+      setSeguindo(false)
+    } else {
+      await supabase.from('seguidores').insert({
+        seguidor_id: currentAlunoId,
+        seguido_id: profile.aluno_id,
+      })
+      setSeguindo(true)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 bg-background flex flex-col">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <button onClick={onClose}><X className="h-6 w-6 text-foreground" /></button>
+        <span className="font-semibold text-foreground">{profile.nome.split(" ")[0]}</span>
+        <div className="w-6" />
+      </div>
+
+      <div className="px-4 pt-6">
+        <div className="flex items-center gap-4">
+          <Avatar className="h-20 w-20 border-2 border-primary overflow-hidden">
+            {profile.foto_url && <AvatarImage src={profile.foto_url} className="object-cover" />}
+            <AvatarFallback className="bg-secondary text-foreground text-xl font-bold">
+              {profile.nome.split(" ").map((n: string) => n[0]).join("")}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-foreground">{profile.nome}</h2>
+            <p className="text-sm text-muted-foreground capitalize">{profile.objetivo || ""}</p>
+            <div className="mt-1 flex items-center gap-2">
+              <Flame className="h-4 w-4 text-primary" />
+              <span className="text-sm font-bold text-primary">{profile.streak} dias</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <div className="glass rounded-xl p-3 text-center">
+            <p className="text-lg font-bold text-foreground">{profile.total_posts}</p>
+            <p className="text-xs text-muted-foreground">Posts</p>
+          </div>
+          <div className="glass rounded-xl p-3 text-center">
+            <p className="text-lg font-bold text-foreground">{profile.total_seguidores}</p>
+            <p className="text-xs text-muted-foreground">Seguidores</p>
+          </div>
+          <div className="glass rounded-xl p-3 text-center">
+            <p className="text-lg font-bold text-foreground">—</p>
+            <p className="text-xs text-muted-foreground">Seguindo</p>
+          </div>
+        </div>
+
+        {!loading && (
+          <button
+            onClick={handleSeguir}
+            className={`mt-4 w-full h-12 rounded-xl flex items-center justify-center gap-2 text-sm font-bold transition-all ${
+              seguindo
+                ? "bg-secondary text-foreground border border-border"
+                : "bg-primary text-primary-foreground neon-glow"
+            }`}
+          >
+            {seguindo ? (
+              <><UserCheck className="h-4 w-4" /> Seguindo</>
+            ) : (
+              <><UserPlus className="h-4 w-4" /> Seguir</>
+            )}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function FeedPost({ post, isOwn, onDelete, onOpenProfile }: {
   post: Post
   isOwn: boolean
   onDelete: () => void
+  onOpenProfile: () => void
 }) {
   const [fired, setFired] = useState(false)
   const [fireCount, setFireCount] = useState(post.total_fogo)
@@ -355,7 +485,7 @@ function FeedPost({ post, isOwn, onDelete }: {
       )}
       <div className="px-4 py-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <button onClick={onOpenProfile} className="flex items-center gap-3">
             <Avatar className="h-8 w-8 overflow-hidden">
               {post.profiles.foto_url && <AvatarImage src={post.profiles.foto_url} className="object-cover" />}
               <AvatarFallback className="bg-secondary text-foreground text-xs font-bold">
@@ -363,7 +493,7 @@ function FeedPost({ post, isOwn, onDelete }: {
               </AvatarFallback>
             </Avatar>
             <span className="text-sm font-semibold text-foreground">{post.profiles.nome}</span>
-          </div>
+          </button>
           {isOwn && (
             <div className="relative">
               <button onClick={() => setShowMenu(!showMenu)}>
@@ -394,7 +524,6 @@ function FeedPost({ post, isOwn, onDelete }: {
           </button>
         </div>
 
-        {/* Comentários inline */}
         {showComments && (
           <div className="mt-3 flex flex-col gap-2">
             {comentarios.length === 0 ? (
