@@ -64,24 +64,36 @@ export function OnboardingScreen({
           }
         }
 
-        // Atualiza nome no profile
-        await supabase
-          .from('profiles')
-          .update({ nome: name, foto_url: fotoUrl })
-          .eq('id', user.id)
+        // Garante que o profile existe (upsert)
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          tipo: 'aluno',
+          nome: name || 'Novo usuário',
+          email: user.email || '',
+          foto_url: fotoUrl,
+        }, { onConflict: 'id' })
 
-        // Cria registro na tabela alunos
-        const { error: alunoError } = await supabase
+        // Verifica se já tem aluno cadastrado
+        const { data: alunoExistente } = await supabase
           .from('alunos')
-          .insert({
+          .select('id')
+          .eq('profile_id', user.id)
+          .single()
+
+        if (!alunoExistente) {
+          const academiaId = localStorage.getItem('academia_id') || null
+          await supabase.from('alunos').insert({
             profile_id: user.id,
-            academia_id: null,
+            academia_id: academiaId,
             peso: weight ? parseFloat(weight) : null,
             altura: height ? parseFloat(height) : null,
             objetivo: selectedGoal.toLowerCase(),
           })
-
-        if (alunoError) throw alunoError
+          if (academiaId) {
+            localStorage.removeItem('academia_id')
+            localStorage.removeItem('academia_slug')
+          }
+        }
 
         onNext()
       } catch (e: any) {
@@ -92,7 +104,6 @@ export function OnboardingScreen({
       }
       return
     }
-
     // Steps 1 e 2 só avança
     if (step === 1 && !name.trim()) {
       setErro("Digite seu nome")
@@ -101,7 +112,6 @@ export function OnboardingScreen({
     setErro("")
     onNext()
   }
-
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="mx-auto flex w-full max-w-[430px] flex-1 flex-col px-6 py-8">
