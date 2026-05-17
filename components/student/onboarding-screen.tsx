@@ -61,17 +61,33 @@ export function OnboardingScreen({
     }
   }
 
-  async function handleNext() {
+ async function handleNext() {
+    setErro("")
+
+    if (step === 1) {
+      if (!name.trim()) { setErro("Digite seu nome completo"); return }
+      if (!avatarFile && !avatarPreview) { setErro("Adicione uma foto de perfil"); return }
+      onNext()
+      return
+    }
+
+    if (step === 2) {
+      if (!weight) { setErro("Digite seu peso"); return }
+      if (!height) { setErro("Digite sua altura"); return }
+      if (!cep || cep.length < 8) { setErro("Digite um CEP válido"); return }
+      if (!cidade) { setErro("CEP não encontrado, verifique"); return }
+      onNext()
+      return
+    }
+
     if (step === 3) {
-      if (!selectedGoal) {
-        setErro("Selecione um objetivo")
-        return
-      }
+      if (!selectedGoal) { setErro("Selecione um objetivo"); return }
       setLoading(true)
-      setErro("")
+
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) throw new Error("Usuário não encontrado")
+
         let fotoUrl = null
         if (avatarFile) {
           const ext = avatarFile.name.split('.').pop()
@@ -86,27 +102,30 @@ export function OnboardingScreen({
             fotoUrl = urlData.publicUrl
           }
         }
+
         await supabase.from('profiles').upsert({
           id: user.id,
           tipo: 'aluno',
-          nome: name || 'Novo usuário',
+          nome: name,
           email: user.email || '',
           foto_url: fotoUrl,
-          cep: cep || null,
-          cidade: cidade || null,
+          cep: cep,
+          cidade: cidade,
         }, { onConflict: 'id' })
+
         const { data: alunoExistente } = await supabase
           .from('alunos')
           .select('id')
           .eq('profile_id', user.id)
           .single()
+
         if (!alunoExistente) {
           const academiaId = localStorage.getItem('academia_id') || null
           await supabase.from('alunos').insert({
             profile_id: user.id,
             academia_id: academiaId,
-            peso: weight ? parseFloat(weight) : null,
-            altura: height ? parseFloat(height) : null,
+            peso: parseFloat(weight),
+            altura: parseFloat(height),
             objetivo: selectedGoal.toLowerCase(),
           })
           if (academiaId) {
@@ -114,6 +133,7 @@ export function OnboardingScreen({
             localStorage.removeItem('academia_slug')
           }
         }
+
         onNext()
       } catch (e: any) {
         setErro("Erro ao salvar. Tente novamente.")
@@ -121,14 +141,7 @@ export function OnboardingScreen({
       } finally {
         setLoading(false)
       }
-      return
     }
-    if (step === 1 && !name.trim()) {
-      setErro("Digite seu nome")
-      return
-    }
-    setErro("")
-    onNext()
   }
   return (
     <div className="flex min-h-screen flex-col bg-background">
