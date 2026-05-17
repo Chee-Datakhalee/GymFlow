@@ -156,8 +156,15 @@ export function WorkoutScreen() {
               Exercício {Math.min(Math.floor(completedTotal / 4) + 1, todayExercises.length)} de {todayExercises.length}
             </p>
           </div>
-          <span className="text-sm font-bold text-primary">{Math.round(progress)}%</span>
-        </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-bold text-primary">{Math.round(progress)}%</span>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('editarTreino'))}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors"
+            >
+              Editar
+            </button>
+          </div>
         <Progress value={progress} className="mt-2 h-2 bg-secondary [&>div]:bg-primary" />
       </div>
 
