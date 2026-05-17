@@ -1,7 +1,7 @@
 "use client"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AcademyLogin } from "./academy-login"
+import { AcademyOnboarding } from "./academy-onboarding"
 import { AcademySidebar } from "./academy-sidebar"
 import { AcademyDashboard } from "./academy-dashboard"
 import { AcademyStudents } from "./academy-students"
@@ -10,20 +10,59 @@ import { AcademyRanking } from "./academy-ranking"
 import { AcademyFinancial } from "./academy-financial"
 import { AcademyNotifications } from "./academy-notifications"
 import { AcademySettings } from "./academy-settings"
+import { supabase } from "@/lib/supabase"
 
-type AcademyScreen = "login" | "dashboard" | "students" | "workouts" | "ranking" | "financial" | "notifications" | "settings"
+type AcademyScreen = "loading" | "login" | "onboarding" | "dashboard" | "students" | "workouts" | "ranking" | "financial" | "notifications" | "settings"
 
 export function AcademyPanel({ onSwitchToStudent }: { onSwitchToStudent: () => void }) {
-  const [screen, setScreen] = useState<AcademyScreen>("login")
-  const [loggedIn, setLoggedIn] = useState(false)
+  const [screen, setScreen] = useState<AcademyScreen>("loading")
 
-  if (!loggedIn) {
+  useEffect(() => {
+    async function checkStatus() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setScreen("login"); return }
+      if (user.user_metadata?.tipo !== 'academia') { setScreen("login"); return }
+
+      const { data: academia } = await supabase
+        .from('academias')
+        .select('id')
+        .eq('profile_id', user.id)
+        .single()
+
+      if (!academia) { setScreen("onboarding"); return }
+      setScreen("dashboard")
+    }
+    checkStatus()
+  }, [])
+
+  if (screen === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (screen === "login") {
     return (
       <AcademyLogin
-        onLogin={() => { setLoggedIn(true); setScreen("dashboard") }}
+        onLogin={async () => {
+          const { data: { user } } = await supabase.auth.getUser()
+          if (!user) return
+          const { data: academia } = await supabase
+            .from('academias')
+            .select('id')
+            .eq('profile_id', user.id)
+            .single()
+          setScreen(academia ? "dashboard" : "onboarding")
+        }}
         onSwitchToStudent={onSwitchToStudent}
       />
     )
+  }
+
+  if (screen === "onboarding") {
+    return <AcademyOnboarding onComplete={() => setScreen("dashboard")} />
   }
 
   const renderContent = () => {
@@ -44,7 +83,10 @@ export function AcademyPanel({ onSwitchToStudent }: { onSwitchToStudent: () => v
       <AcademySidebar
         active={screen}
         onNavigate={(s) => setScreen(s as AcademyScreen)}
-        onLogout={() => { setLoggedIn(false); setScreen("login") }}
+        onLogout={async () => {
+          await supabase.auth.signOut()
+          setScreen("login")
+        }}
       />
       <main className="flex-1 overflow-auto p-6 lg:p-8">
         {renderContent()}
