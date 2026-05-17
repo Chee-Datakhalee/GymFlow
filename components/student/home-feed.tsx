@@ -1,14 +1,95 @@
 "use client"
 
-import { useState } from "react"
-import { Flame, MessageCircle } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { mockUsers, mockFeedPosts } from "@/lib/mock-data"
+import { useState, useEffect } from "react"
+import { Flame, MessageCircle, Camera } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { supabase } from "@/lib/supabase"
+
+type Post = {
+  id: string
+  foto_url: string | null
+  tipo: string
+  descricao_automatica: string | null
+  total_fogo: number
+  created_at: string
+  aluno_id: string
+  profiles: { nome: string; foto_url: string | null }
+}
+
+type Story = {
+  id: string
+  aluno_id: string
+  foto_url: string
+  profiles: { nome: string; foto_url: string | null }
+}
 
 export function HomeFeed() {
+  const [posts, setPosts] = useState<Post[]>([])
+  const [stories, setStories] = useState<Story[]>([])
+  const [loading, setLoading] = useState(true)
+  const [academiaId, setAcademiaId] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchFeed() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: aluno } = await supabase
+        .from('alunos')
+        .select('id, academia_id')
+        .eq('profile_id', user.id)
+        .single()
+
+      const aId = aluno?.academia_id || null
+      setAcademiaId(aId)
+
+      // Busca posts
+      let postsQuery = supabase
+        .from('posts')
+        .select('id, foto_url, tipo, descricao_automatica, total_fogo, created_at, aluno_id, alunos(profiles(nome, foto_url))')
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (aId) postsQuery = postsQuery.eq('academia_id', aId)
+
+      const { data: postsData } = await postsQuery
+
+      // Busca stories ativos
+      const agora = new Date().toISOString()
+      let storiesQuery = supabase
+        .from('stories')
+        .select('id, aluno_id, foto_url, alunos(profiles(nome, foto_url))')
+        .gt('expira_em', agora)
+
+      if (aId) storiesQuery = storiesQuery.eq('academia_id', aId)
+
+      const { data: storiesData } = await storiesQuery
+
+      if (postsData) setPosts(postsData.map((p: any) => ({
+        ...p,
+        profiles: p.alunos?.profiles || { nome: 'Aluno', foto_url: null }
+      })))
+
+      if (storiesData) setStories(storiesData.map((s: any) => ({
+        ...s,
+        profiles: s.alunos?.profiles || { nome: 'Aluno', foto_url: null }
+      })))
+
+      setLoading(false)
+    }
+    fetchFeed()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[80vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col">
-      {/* Header */}
       <div className="sticky top-0 z-10 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl">
         <h1 className="text-xl font-bold text-foreground">
           Gym<span className="text-primary">Flow</span>
@@ -17,47 +98,85 @@ export function HomeFeed() {
 
       {/* Stories */}
       <div className="flex gap-3 overflow-x-auto px-4 py-4 scrollbar-none">
-        {mockUsers.slice(0, 8).map((user) => (
-          <div key={user.id} className="flex flex-shrink-0 flex-col items-center gap-1">
-            <div className={`rounded-full p-[2px] ${
-              user.streak > 0 ? "bg-gradient-to-br from-primary to-primary/60" : "bg-border"
-            }`}>
-              <Avatar className="h-16 w-16 border-2 border-background">
-                <AvatarFallback className="bg-secondary text-foreground text-sm font-bold">
-                  {user.name.split(" ").map((n) => n[0]).join("")}
-                </AvatarFallback>
-              </Avatar>
+        {stories.length === 0 ? (
+          <div className="flex flex-shrink-0 flex-col items-center gap-1">
+            <div className="rounded-full bg-secondary p-[2px]">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-background bg-secondary">
+                <Camera className="h-6 w-6 text-muted-foreground" />
+              </div>
             </div>
-            <span className="max-w-[64px] truncate text-xs text-muted-foreground">
-              {user.name.split(" ")[0]}
-            </span>
+            <span className="text-xs text-muted-foreground">Sem stories</span>
           </div>
-        ))}
+        ) : (
+          stories.map((story) => (
+            <div key={story.id} className="flex flex-shrink-0 flex-col items-center gap-1">
+              <div className="rounded-full p-[2px] bg-gradient-to-br from-primary to-primary/60">
+                <Avatar className="h-16 w-16 border-2 border-background">
+                  {story.profiles.foto_url && <AvatarImage src={story.profiles.foto_url} />}
+                  <AvatarFallback className="bg-secondary text-foreground text-sm font-bold">
+                    {story.profiles.nome.split(" ").map((n: string) => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+              <span className="max-w-[64px] truncate text-xs text-muted-foreground">
+                {story.profiles.nome.split(" ")[0]}
+              </span>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Feed */}
-      <div className="flex flex-col">
-        {mockFeedPosts.map((post) => {
-          const user = mockUsers.find((u) => u.id === post.userId)
-          if (!user) return null
-          return <FeedPost key={post.id} post={post} user={user} />
-        })}
-      </div>
+      {posts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+          <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
+            <Camera className="h-10 w-10 text-muted-foreground" />
+          </div>
+          <p className="text-lg font-bold text-foreground">Nenhum post ainda</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Seja o primeiro a postar seu treino!
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col">
+          {posts.map((post) => (
+            <FeedPost key={post.id} post={post} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-function FeedPost({
-  post,
-  user,
-}: {
-  post: (typeof mockFeedPosts)[0]
-  user: (typeof mockUsers)[0]
-}) {
+function FeedPost({ post }: { post: Post }) {
   const [fired, setFired] = useState(false)
-  const [fireCount, setFireCount] = useState(post.fires)
+  const [fireCount, setFireCount] = useState(post.total_fogo)
 
-  if (post.type === "achievement") {
+  async function handleFire() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data: aluno } = await supabase
+      .from('alunos')
+      .select('id')
+      .eq('profile_id', user.id)
+      .single()
+
+    if (!aluno) return
+
+    if (!fired) {
+      await supabase.from('reacoes').insert({ post_id: post.id, aluno_id: aluno.id })
+      await supabase.from('posts').update({ total_fogo: fireCount + 1 }).eq('id', post.id)
+      setFireCount(fireCount + 1)
+    } else {
+      await supabase.from('reacoes').delete().eq('post_id', post.id).eq('aluno_id', aluno.id)
+      await supabase.from('posts').update({ total_fogo: fireCount - 1 }).eq('id', post.id)
+      setFireCount(fireCount - 1)
+    }
+    setFired(!fired)
+  }
+
+  if (post.tipo === 'pr_automatico' || post.tipo === 'treino_automatico') {
     return (
       <div className="mx-4 mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4 neon-glow">
         <div className="flex items-center gap-3">
@@ -65,23 +184,16 @@ function FeedPost({
             <Flame className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-primary">{post.text}</p>
+            <p className="text-sm font-semibold text-primary">{post.descricao_automatica}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {new Date(post.createdAt).toLocaleDateString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              {new Date(post.created_at).toLocaleDateString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
             </p>
           </div>
         </div>
         <div className="mt-3 flex items-center gap-4">
-          <button
-            onClick={() => { setFired(!fired); setFireCount(fired ? fireCount - 1 : fireCount + 1) }}
-            className="flex items-center gap-1 text-sm"
-          >
+          <button onClick={handleFire} className="flex items-center gap-1 text-sm">
             <Flame className={`h-4 w-4 ${fired ? "fill-primary text-primary" : "text-muted-foreground"}`} />
             <span className={fired ? "text-primary" : "text-muted-foreground"}>{fireCount}</span>
-          </button>
-          <button className="flex items-center gap-1 text-sm text-muted-foreground">
-            <MessageCircle className="h-4 w-4" />
-            <span>{post.comments}</span>
           </button>
         </div>
       </div>
@@ -90,40 +202,30 @@ function FeedPost({
 
   return (
     <div className="mb-4">
-      {/* Post image placeholder */}
-      <div className="aspect-square w-full bg-secondary">
-        <div className="flex h-full items-center justify-center">
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <Avatar className="h-20 w-20">
-              <AvatarFallback className="bg-card text-foreground text-xl font-bold">
-                {user.name.split(" ").map((n) => n[0]).join("")}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-xs">Foto do treino</span>
-          </div>
+      {post.foto_url ? (
+        <img src={post.foto_url} alt="post" className="aspect-square w-full object-cover" />
+      ) : (
+        <div className="aspect-square w-full bg-secondary flex items-center justify-center">
+          <Camera className="h-12 w-12 text-muted-foreground" />
         </div>
-      </div>
-      {/* Post info */}
+      )}
       <div className="px-4 py-3">
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
+            {post.profiles.foto_url && <AvatarImage src={post.profiles.foto_url} />}
             <AvatarFallback className="bg-secondary text-foreground text-xs font-bold">
-              {user.name.split(" ").map((n) => n[0]).join("")}
+              {post.profiles.nome.split(" ").map((n: string) => n[0]).join("")}
             </AvatarFallback>
           </Avatar>
-          <span className="text-sm font-semibold text-foreground">{user.name}</span>
+          <span className="text-sm font-semibold text-foreground">{post.profiles.nome}</span>
         </div>
         <div className="mt-2 flex items-center gap-4">
-          <button
-            onClick={() => { setFired(!fired); setFireCount(fired ? fireCount - 1 : fireCount + 1) }}
-            className="flex items-center gap-1 text-sm"
-          >
+          <button onClick={handleFire} className="flex items-center gap-1 text-sm">
             <Flame className={`h-4 w-4 ${fired ? "fill-primary text-primary" : "text-muted-foreground"}`} />
             <span className={fired ? "text-primary" : "text-muted-foreground"}>{fireCount}</span>
           </button>
           <button className="flex items-center gap-1 text-sm text-muted-foreground">
             <MessageCircle className="h-4 w-4" />
-            <span>{post.comments}</span>
           </button>
         </div>
       </div>
