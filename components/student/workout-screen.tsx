@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { mockExercises } from "@/lib/mock-data"
+import { supabase } from "@/lib/supabase"
 
 const diasSemana = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"]
 const diasNomes: Record<string, string> = {
@@ -19,30 +20,44 @@ function getDiaHoje(): string {
   return diasSemana[new Date().getDay()]
 }
 
-function getMuscleHoje(): string | null {
-  try {
-    const raw = localStorage.getItem('gymflow_schedule')
-    if (!raw) return null
-    const schedule = JSON.parse(raw)
-    const hoje = getDiaHoje()
-    if (schedule[hoje]?.active) return schedule[hoje].muscle
-    return null
-  } catch {
-    return null
-  }
-}
-
 export function WorkoutScreen() {
   const diaHoje = getDiaHoje()
-  const muscleHoje = getMuscleHoje()
-  const todayExercises = muscleHoje
-    ? mockExercises.filter((e) => e.muscle === muscleHoje.split(' + ')[0])
-    : []
-
+  const [muscleHoje, setMuscleHoje] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
   const [completedSets, setCompletedSets] = useState<Record<string, boolean[]>>({})
   const [restTimer, setRestTimer] = useState<number | null>(null)
   const [isResting, setIsResting] = useState(false)
   const [workoutFinished, setWorkoutFinished] = useState(false)
+
+  useEffect(() => {
+    async function fetchDiaTreino() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setLoading(false); return }
+
+      const { data: aluno } = await supabase
+        .from('alunos')
+        .select('id')
+        .eq('profile_id', user.id)
+        .single()
+
+      if (!aluno) { setLoading(false); return }
+
+      const { data: dia } = await supabase
+        .from('dias_treino')
+        .select('grupo_muscular')
+        .eq('aluno_id', aluno.id)
+        .eq('dia_semana', diaHoje)
+        .single()
+
+      if (dia) setMuscleHoje(dia.grupo_muscular)
+      setLoading(false)
+    }
+    fetchDiaTreino()
+  }, [diaHoje])
+
+  const todayExercises = muscleHoje
+    ? mockExercises.filter((e) => e.muscle === muscleHoje.split(' + ')[0])
+    : []
 
   const totalSets = todayExercises.reduce((acc, e) => acc + e.sets, 0)
   const completedTotal = Object.values(completedSets).flat().filter(Boolean).length
@@ -75,7 +90,14 @@ export function WorkoutScreen() {
     })
   }
 
-  // Dia de descanso
+  if (loading) {
+    return (
+      <div className="flex min-h-[80vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
   if (!muscleHoje) {
     return (
       <div className="flex min-h-[80vh] flex-col items-center justify-center px-6 text-center">
@@ -90,7 +112,6 @@ export function WorkoutScreen() {
           Descanse e volte mais forte amanhã 💪
         </p>
         <Button
-          onClick={() => {}}
           variant="outline"
           className="mt-8 rounded-xl border-border text-foreground"
         >
@@ -100,7 +121,6 @@ export function WorkoutScreen() {
     )
   }
 
-  // Treino concluído
   if (workoutFinished) {
     return (
       <div className="flex min-h-[80vh] flex-col items-center justify-center px-6 text-center">
@@ -126,7 +146,6 @@ export function WorkoutScreen() {
 
   return (
     <div className="flex flex-col pb-4">
-      {/* Header */}
       <div className="sticky top-0 z-10 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl">
         <div className="flex items-center justify-between">
           <div>
@@ -142,7 +161,6 @@ export function WorkoutScreen() {
         <Progress value={progress} className="mt-2 h-2 bg-secondary [&>div]:bg-primary" />
       </div>
 
-      {/* Rest Timer */}
       {isResting && (
         <motion.div
           initial={{ height: 0, opacity: 0 }}
@@ -168,7 +186,6 @@ export function WorkoutScreen() {
         </motion.div>
       )}
 
-      {/* Exercises */}
       <div className="mt-4 flex flex-col gap-4 px-4">
         {todayExercises.map((exercise, i) => (
           <motion.div
@@ -186,10 +203,8 @@ export function WorkoutScreen() {
                 </div>
               </div>
             </div>
-
             <h3 className="text-lg font-bold text-foreground">{exercise.name}</h3>
             <p className="text-xs text-muted-foreground">{exercise.sets} séries x {exercise.reps} reps</p>
-
             <div className="mt-3 flex flex-col gap-2">
               {Array.from({ length: exercise.sets }).map((_, setIndex) => {
                 const isComplete = completedSets[exercise.id]?.[setIndex] || false
