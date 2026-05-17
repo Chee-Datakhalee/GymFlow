@@ -101,10 +101,9 @@ export default function AcademiaLP() {
           <a className="nav-back" href="/escolha">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
           </a>
-          <a className="logo" href="/escolha">
-            <span className="logo-mark">G</span>
-            GymFlow
-          </a>
+          <a href="/escolha">
+  <img src="/LOGO-GYN-FLOW.png" alt="GymFlow" style={{height:'32px'}} />
+</a>
           <a className="btn btn-primary" href="/" style={{padding:'8px 16px',fontSize:'13px'}}>Entrar</a>
         </nav>
 
