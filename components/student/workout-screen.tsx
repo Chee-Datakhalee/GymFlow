@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { motion } from "framer-motion"
-import { Play, Pause, RotateCcw, Check, Timer, Moon } from "lucide-react"
+import { Play, Pause, RotateCcw, Check, Timer, Moon, Dumbbell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
-import { mockExercises } from "@/lib/mock-data"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { mockExercises, muscleGroups } from "@/lib/mock-data"
 import { supabase } from "@/lib/supabase"
 
 const diasSemana = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"]
@@ -28,6 +29,8 @@ export function WorkoutScreen() {
   const [restTimer, setRestTimer] = useState<number | null>(null)
   const [isResting, setIsResting] = useState(false)
   const [workoutFinished, setWorkoutFinished] = useState(false)
+  const [treinavulso, setTreinoAvulso] = useState(false)
+  const [muscleAvulso, setMuscleAvulso] = useState<string>("")
 
   useEffect(() => {
     async function fetchDiaTreino() {
@@ -55,8 +58,10 @@ export function WorkoutScreen() {
     fetchDiaTreino()
   }, [diaHoje])
 
-  const todayExercises = muscleHoje
-    ? mockExercises.filter((e) => e.muscle === muscleHoje.split(' + ')[0])
+  const muscleAtivo = treinavulso ? muscleAvulso : muscleHoje
+
+  const todayExercises = muscleAtivo
+    ? mockExercises.filter((e) => e.muscle === muscleAtivo.split(' + ')[0])
     : []
 
   const totalSets = todayExercises.reduce((acc, e) => acc + e.sets, 0)
@@ -98,7 +103,41 @@ export function WorkoutScreen() {
     )
   }
 
-  if (!muscleHoje) {
+  // Tela de seleção para treino avulso
+  if (treinavulso && !muscleAvulso) {
+    return (
+      <div className="flex min-h-[80vh] flex-col px-6 pt-8">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-foreground">Treino Avulso</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Escolha o grupo muscular de hoje</p>
+        </div>
+        <div className="flex flex-col gap-3">
+          {muscleGroups.map((g) => (
+            <button
+              key={g}
+              onClick={() => setMuscleAvulso(g)}
+              className="glass flex items-center gap-3 rounded-xl p-4 transition-all hover:border-primary/50"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20">
+                <Dumbbell className="h-5 w-5 text-primary" />
+              </div>
+              <span className="font-medium text-foreground">{g}</span>
+            </button>
+          ))}
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setTreinoAvulso(false)}
+          className="mt-6 rounded-xl border-border text-foreground"
+        >
+          Voltar
+        </Button>
+      </div>
+    )
+  }
+
+  // Dia de descanso
+  if (!muscleAtivo) {
     return (
       <div className="flex min-h-[80vh] flex-col items-center justify-center px-6 text-center">
         <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-secondary">
@@ -112,8 +151,8 @@ export function WorkoutScreen() {
           Descanse e volte mais forte amanhã 💪
         </p>
         <Button
-          variant="outline"
-          className="mt-8 rounded-xl border-border text-foreground"
+          onClick={() => setTreinoAvulso(true)}
+          className="mt-8 rounded-xl bg-primary text-primary-foreground neon-glow"
         >
           Fazer treino avulso
         </Button>
@@ -121,6 +160,7 @@ export function WorkoutScreen() {
     )
   }
 
+  // Treino concluído
   if (workoutFinished) {
     return (
       <div className="flex min-h-[80vh] flex-col items-center justify-center px-6 text-center">
@@ -135,7 +175,12 @@ export function WorkoutScreen() {
         <h2 className="text-2xl font-bold text-foreground">Treino Concluído!</h2>
         <p className="mt-2 text-muted-foreground">Você completou {completedTotal} séries hoje</p>
         <Button
-          onClick={() => { setWorkoutFinished(false); setCompletedSets({}) }}
+          onClick={() => {
+            setWorkoutFinished(false)
+            setCompletedSets({})
+            setTreinoAvulso(false)
+            setMuscleAvulso("")
+          }}
           className="mt-8 rounded-xl bg-primary text-primary-foreground neon-glow"
         >
           Novo Treino
@@ -150,7 +195,7 @@ export function WorkoutScreen() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-foreground">
-              {diasNomes[diaHoje]} — {muscleHoje}
+              {treinavulso ? "Avulso" : diasNomes[diaHoje]} — {muscleAtivo}
             </h2>
             <p className="text-xs text-muted-foreground">
               Exercício {Math.min(Math.floor(completedTotal / 4) + 1, todayExercises.length)} de {todayExercises.length}
@@ -158,12 +203,22 @@ export function WorkoutScreen() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm font-bold text-primary">{Math.round(progress)}%</span>
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent('editarTreino'))}
-              className="text-xs text-muted-foreground hover:text-primary transition-colors"
-            >
-              Editar
-            </button>
+            {!treinavulso && (
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('editarTreino'))}
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                Editar
+              </button>
+            )}
+            {treinavulso && (
+              <button
+                onClick={() => { setMuscleAvulso(""); setCompletedSets({}) }}
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                Trocar
+              </button>
+            )}
           </div>
         </div>
         <Progress value={progress} className="mt-2 h-2 bg-secondary [&>div]:bg-primary" />
