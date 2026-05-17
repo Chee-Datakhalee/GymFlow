@@ -37,7 +37,6 @@ export function PostScreen({ onClose }: { onClose: () => void }) {
 
       if (!aluno) throw new Error("Aluno não encontrado")
 
-      // Upload da foto
       const ext = file.name.split('.').pop()
       const path = `${user.id}/${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
@@ -49,7 +48,6 @@ export function PostScreen({ onClose }: { onClose: () => void }) {
       const { data: urlData } = supabase.storage.from('posts').getPublicUrl(path)
       const fotoUrl = urlData.publicUrl
 
-      // Cria o post
       const { error: postError } = await supabase.from('posts').insert({
         aluno_id: aluno.id,
         academia_id: aluno.academia_id,
@@ -59,6 +57,13 @@ export function PostScreen({ onClose }: { onClose: () => void }) {
       })
 
       if (postError) throw postError
+
+      // Cria story automático
+      await supabase.from('stories').insert({
+        aluno_id: aluno.id,
+        academia_id: aluno.academia_id,
+        foto_url: fotoUrl,
+      })
 
       setPosted(true)
     } catch (e: any) {
@@ -127,7 +132,6 @@ export function PostScreen({ onClose }: { onClose: () => void }) {
           <div className="w-6" />
         </div>
 
-        {/* Preview ou placeholder */}
         <div
           className="aspect-square w-full bg-secondary cursor-pointer overflow-hidden"
           onClick={() => inputRef.current?.click()}
