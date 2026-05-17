@@ -1,6 +1,4 @@
-// Mock data for GymFlow app
 export const mockUsers: any[] = []
-]
 
 export const mockExercises = [
   { id: '1', name: 'Supino Reto', muscle: 'Peito', sets: 4, reps: '8-12', pr: 85 },
