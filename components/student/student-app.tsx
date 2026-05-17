@@ -15,10 +15,17 @@ import { WeekSetupScreen } from "./week-setup-screen"
 type Screen = "onboarding" | "weekSetup" | "feed" | "workout" | "post" | "ranking" | "profile" | "evolution" | "nutrition"
 
 export function StudentApp({ onSwitchToAcademy }: { onSwitchToAcademy: () => void }) {
-  const [screen, setScreen] = useState<Screen>("onboarding")
+const [screen, setScreen] = useState<Screen>(() => {
+    if (typeof window !== 'undefined') {
+      const done = localStorage.getItem('gymflow_onboarding_done')
+      const schedule = localStorage.getItem('gymflow_schedule')
+      if (done && schedule) return "feed"
+      if (done) return "weekSetup"
+    }
+    return "onboarding"
+  })
   const [onboardingStep, setOnboardingStep] = useState(1)
   const [showPost, setShowPost] = useState(false)
-
   if (screen === "onboarding") {
     return (
       <OnboardingScreen
@@ -27,6 +34,7 @@ export function StudentApp({ onSwitchToAcademy }: { onSwitchToAcademy: () => voi
           if (onboardingStep < 3) {
             setOnboardingStep(onboardingStep + 1)
           } else {
+            localStorage.setItem('gymflow_onboarding_done', 'true')
             setScreen("weekSetup")
           }
         }}
