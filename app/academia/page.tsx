@@ -22,7 +22,7 @@ export default function AcademiaLP() {
         .btn-lg{padding:18px 28px;font-size:16px}
         .hero{position:relative;padding:32px 20px 56px;min-height:600px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
         .hero-bg{position:absolute;inset:0;z-index:0;background-size:cover;background-position:center}
-        .hero-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(10,10,10,0.5) 0%,rgba(10,10,10,0.2) 30%,rgba(10,10,10,0.95) 90%,var(--bg) 100%),radial-gradient(80% 60% at 20% 90%,rgba(0,255,135,0.35) 0%,rgba(0,255,135,0) 60%)}
+        .hero-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(10,10,10,0.75) 0%,rgba(10,10,10,0.55) 30%,rgba(10,10,10,0.97) 90%,var(--bg) 100%),radial-gradient(80% 60% at 20% 90%,rgba(0,255,135,0.35) 0%,rgba(0,255,135,0) 60%)}
         .hero-content{position:relative;z-index:2}
         .hero h1{font-size:44px;line-height:0.95;margin-bottom:16px}
         .hero h1 em{font-style:normal;color:var(--neon);text-shadow:0 0 40px var(--neon-glow)}
