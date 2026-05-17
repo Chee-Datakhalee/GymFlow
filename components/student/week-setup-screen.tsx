@@ -90,7 +90,10 @@ export function WeekSetupScreen({ onContinue }: { onContinue: () => void }) {
 
         <div className="mt-8">
           <Button
-            onClick={onContinue}
+            onClick={() => {
+              localStorage.setItem('gymflow_schedule', JSON.stringify(schedule))
+              onContinue()
+            }}
             className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary text-lg font-bold text-primary-foreground neon-glow hover:bg-primary/90"
           >
             Continuar
