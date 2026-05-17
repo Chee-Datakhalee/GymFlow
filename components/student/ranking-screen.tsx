@@ -49,6 +49,7 @@ export function RankingScreen() {
 
       if (!alunos) { setLoading(false); return }
 
+
       // Busca treinos da semana por aluno
       const inicioSemana = new Date()
       inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay())
@@ -101,16 +102,7 @@ export function RankingScreen() {
     )
   }
 
-  if (!academiaId) {
-    return (
-      <div className="flex min-h-[80vh] flex-col items-center justify-center px-6 text-center">
-        <p className="text-lg font-bold text-foreground">Sem academia vinculada</p>
-        <p className="mt-2 text-sm text-muted-foreground">Entre pelo link da sua academia para ver o ranking</p>
-      </div>
-    )
-  }
-
-  if (ranking.length === 0) {
+    if (ranking.length === 0) {
     return (
       <div className="flex min-h-[80vh] flex-col items-center justify-center px-6 text-center">
         <p className="text-lg font-bold text-foreground">Ranking vazio</p>
