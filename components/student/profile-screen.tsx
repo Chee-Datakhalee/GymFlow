@@ -109,8 +109,14 @@ export function ProfileScreen({ onNavigate }: { onNavigate: (screen: string) => 
         </div>
 
         <div className="flex items-center gap-4">
-          <Avatar className="h-20 w-20 border-2 border-primary">
-            {profile?.foto_url && <AvatarImage src={profile.foto_url} alt={profile.nome} />}
+         <Avatar className="h-20 w-20 border-2 border-primary overflow-hidden">
+            {profile?.foto_url && (
+              <AvatarImage 
+                src={profile.foto_url} 
+                alt={profile.nome}
+                className="h-full w-full object-cover"
+              />
+            )}
             <AvatarFallback className="bg-secondary text-foreground text-xl font-bold">
               {iniciais}
             </AvatarFallback>
