@@ -23,6 +23,18 @@ export const mockExercises = [
   { id: '8', name: 'Remada Curvada', muscle: 'Costas', sets: 4, reps: '8-10', pr: 70 },
   { id: '9', name: 'Desenvolvimento', muscle: 'Ombro', sets: 4, reps: '10-12', pr: 40 },
   { id: '10', name: 'Rosca Direta', muscle: 'Biceps', sets: 3, reps: '10-12', pr: 30 },
+  { id: '11', name: 'Abdominal Supra', muscle: 'Abdomen', sets: 3, reps: '15-20', pr: 0 },
+  { id: '12', name: 'Prancha', muscle: 'Abdomen', sets: 3, reps: '30-60s', pr: 0 },
+  { id: '13', name: 'Abdominal Infra', muscle: 'Abdomen', sets: 3, reps: '15-20', pr: 0 },
+  { id: '14', name: 'Obliquo', muscle: 'Abdomen', sets: 3, reps: '15-20', pr: 0 },
+  { id: '15', name: 'Abdominal Bicicleta', muscle: 'Abdomen', sets: 3, reps: '20-30', pr: 0 },
+  { id: '16', name: 'Elevacao de Pernas', muscle: 'Fullbody', sets: 3, reps: '12-15', pr: 0 },
+  { id: '17', name: 'Burpee', muscle: 'Fullbody', sets: 3, reps: '10-15', pr: 0 },
+  { id: '18', name: 'Desenvolvimento Halter', muscle: 'Ombro', sets: 4, reps: '10-12', pr: 30 },
+  { id: '19', name: 'Elevacao Lateral', muscle: 'Ombro', sets: 3, reps: '12-15', pr: 12 },
+  { id: '20', name: 'Rosca Martelo', muscle: 'Biceps', sets: 3, reps: '10-12', pr: 20 },
+  { id: '21', name: 'Triceps Corda', muscle: 'Triceps', sets: 3, reps: '12-15', pr: 25 },
+  { id: '22', name: 'Triceps Testa', muscle: 'Triceps', sets: 3, reps: '10-12', pr: 20 },
 ]
 
 export const mockFeedPosts = [
