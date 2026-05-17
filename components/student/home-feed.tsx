@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Flame, MessageCircle, Camera, X, Trash2, MoreVertical } from "lucide-react"
+import { Flame, MessageCircle, Camera, X, Trash2, MoreVertical, Send } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { supabase } from "@/lib/supabase"
 
@@ -23,13 +23,21 @@ type Story = {
   profiles: { nome: string; foto_url: string | null }
 }
 
+type Comentario = {
+  id: string
+  texto: string
+  created_at: string
+  aluno_id: string
+  profiles: { nome: string; foto_url: string | null }
+}
+
 export function HomeFeed() {
   const [posts, setPosts] = useState<Post[]>([])
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
-  const [academiaId, setAcademiaId] = useState<string | null>(null)
   const [currentAlunoId, setCurrentAlunoId] = useState<string | null>(null)
   const [activeStory, setActiveStory] = useState<Story | null>(null)
+  const [commentPost, setCommentPost] = useState<Post | null>(null)
 
   useEffect(() => {
     async function fetchFeed() {
@@ -43,7 +51,6 @@ export function HomeFeed() {
         .single()
 
       const aId = aluno?.academia_id || null
-      setAcademiaId(aId)
       setCurrentAlunoId(aluno?.id || null)
 
       let postsQuery = supabase
@@ -121,6 +128,15 @@ export function HomeFeed() {
         </div>
       )}
 
+      {/* Modal de comentários */}
+      {commentPost && (
+        <CommentModal
+          post={commentPost}
+          currentAlunoId={currentAlunoId}
+          onClose={() => setCommentPost(null)}
+        />
+      )}
+
       <div className="sticky top-0 z-10 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl">
         <h1 className="text-xl font-bold text-foreground">
           Gym<span className="text-primary">Flow</span>
@@ -138,16 +154,10 @@ export function HomeFeed() {
           </div>
         ) : (
           stories.map((story) => (
-            <button
-              key={story.id}
-              onClick={() => setActiveStory(story)}
-              className="flex flex-shrink-0 flex-col items-center gap-1"
-            >
+            <button key={story.id} onClick={() => setActiveStory(story)} className="flex flex-shrink-0 flex-col items-center gap-1">
               <div className="rounded-full p-[2px] bg-gradient-to-br from-primary to-primary/60">
                 <Avatar className="h-16 w-16 border-2 border-background overflow-hidden">
-                  {story.profiles.foto_url && (
-                    <AvatarImage src={story.profiles.foto_url} className="object-cover" />
-                  )}
+                  {story.profiles.foto_url && <AvatarImage src={story.profiles.foto_url} className="object-cover" />}
                   <AvatarFallback className="bg-secondary text-foreground text-sm font-bold">
                     {story.profiles.nome.split(" ").map((n: string) => n[0]).join("")}
                   </AvatarFallback>
@@ -178,6 +188,7 @@ export function HomeFeed() {
               post={post}
               isOwn={post.aluno_id === currentAlunoId}
               onDelete={() => handleDeletePost(post.id)}
+              onComment={() => setCommentPost(post)}
             />
           ))}
         </div>
@@ -186,10 +197,135 @@ export function HomeFeed() {
   )
 }
 
-function FeedPost({ post, isOwn, onDelete }: { post: Post; isOwn: boolean; onDelete: () => void }) {
+function CommentModal({ post, currentAlunoId, onClose }: {
+  post: Post
+  currentAlunoId: string | null
+  onClose: () => void
+}) {
+  const [comentarios, setComentarios] = useState<Comentario[]>([])
+  const [texto, setTexto] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+
+  useEffect(() => {
+    async function fetchComentarios() {
+      const { data } = await supabase
+        .from('comentarios')
+        .select('id, texto, created_at, aluno_id, alunos(profiles(nome, foto_url))')
+        .eq('post_id', post.id)
+        .order('created_at', { ascending: true })
+
+      if (data) setComentarios(data.map((c: any) => ({
+        ...c,
+        profiles: c.alunos?.profiles || { nome: 'Aluno', foto_url: null }
+      })))
+      setLoading(false)
+    }
+    fetchComentarios()
+  }, [post.id])
+
+  async function handleSend() {
+    if (!texto.trim() || !currentAlunoId) return
+    setSending(true)
+
+    const { data, error } = await supabase
+      .from('comentarios')
+      .insert({ post_id: post.id, aluno_id: currentAlunoId, texto: texto.trim() })
+      .select('id, texto, created_at, aluno_id, alunos(profiles(nome, foto_url))')
+      .single()
+
+    if (!error && data) {
+      setComentarios([...comentarios, {
+        ...data,
+        profiles: (data as any).alunos?.profiles || { nome: 'Aluno', foto_url: null }
+      }])
+      setTexto("")
+    }
+    setSending(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <button onClick={onClose}><X className="h-6 w-6 text-foreground" /></button>
+        <span className="font-semibold text-foreground">Comentários</span>
+        <div className="w-6" />
+      </div>
+
+      {/* Foto do post */}
+      {post.foto_url && (
+        <img src={post.foto_url} alt="post" className="w-full aspect-square object-cover max-h-48" />
+      )}
+
+      {/* Lista de comentários */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        ) : comentarios.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <MessageCircle className="h-10 w-10 text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">Nenhum comentário ainda</p>
+            <p className="text-xs text-muted-foreground">Seja o primeiro!</p>
+          </div>
+        ) : (
+          comentarios.map((c) => (
+            <div key={c.id} className="flex items-start gap-3">
+              <Avatar className="h-8 w-8 overflow-hidden flex-shrink-0">
+                {c.profiles.foto_url && <AvatarImage src={c.profiles.foto_url} className="object-cover" />}
+                <AvatarFallback className="bg-secondary text-foreground text-xs font-bold">
+                  {c.profiles.nome.split(" ").map((n: string) => n[0]).join("")}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 rounded-xl bg-secondary px-3 py-2">
+                <p className="text-xs font-semibold text-primary">{c.profiles.nome}</p>
+                <p className="text-sm text-foreground mt-0.5">{c.texto}</p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Input de comentário */}
+      <div className="border-t border-border px-4 py-3 flex items-center gap-3">
+        <input
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          placeholder="Escreva um comentário..."
+          className="flex-1 rounded-xl bg-secondary px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none border border-border focus:border-primary"
+        />
+        <button
+          onClick={handleSend}
+          disabled={sending || !texto.trim()}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary disabled:opacity-50"
+        >
+          <Send className="h-4 w-4 text-primary-foreground" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function FeedPost({ post, isOwn, onDelete, onComment }: {
+  post: Post
+  isOwn: boolean
+  onDelete: () => void
+  onComment: () => void
+}) {
   const [fired, setFired] = useState(false)
   const [fireCount, setFireCount] = useState(post.total_fogo)
   const [showMenu, setShowMenu] = useState(false)
+  const [commentCount, setCommentCount] = useState(0)
+
+  useEffect(() => {
+    supabase
+      .from('comentarios')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', post.id)
+      .then(({ count }) => setCommentCount(count || 0))
+  }, [post.id])
 
   async function handleFire() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -234,6 +370,10 @@ function FeedPost({ post, isOwn, onDelete }: { post: Post; isOwn: boolean; onDel
             <Flame className={`h-4 w-4 ${fired ? "fill-primary text-primary" : "text-muted-foreground"}`} />
             <span className={fired ? "text-primary" : "text-muted-foreground"}>{fireCount}</span>
           </button>
+          <button onClick={onComment} className="flex items-center gap-1 text-sm text-muted-foreground">
+            <MessageCircle className="h-4 w-4" />
+            <span>{commentCount}</span>
+          </button>
         </div>
       </div>
     )
@@ -252,9 +392,7 @@ function FeedPost({ post, isOwn, onDelete }: { post: Post; isOwn: boolean; onDel
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8 overflow-hidden">
-              {post.profiles.foto_url && (
-                <AvatarImage src={post.profiles.foto_url} className="object-cover" />
-              )}
+              {post.profiles.foto_url && <AvatarImage src={post.profiles.foto_url} className="object-cover" />}
               <AvatarFallback className="bg-secondary text-foreground text-xs font-bold">
                 {post.profiles.nome.split(" ").map((n: string) => n[0]).join("")}
               </AvatarFallback>
@@ -285,8 +423,9 @@ function FeedPost({ post, isOwn, onDelete }: { post: Post; isOwn: boolean; onDel
             <Flame className={`h-4 w-4 ${fired ? "fill-primary text-primary" : "text-muted-foreground"}`} />
             <span className={fired ? "text-primary" : "text-muted-foreground"}>{fireCount}</span>
           </button>
-          <button className="flex items-center gap-1 text-sm text-muted-foreground">
+          <button onClick={onComment} className="flex items-center gap-1 text-sm text-muted-foreground">
             <MessageCircle className="h-4 w-4" />
+            <span>{commentCount}</span>
           </button>
         </div>
       </div>
