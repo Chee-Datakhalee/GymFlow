@@ -165,6 +165,9 @@ export function WorkoutScreen() {
               Editar
             </button>
           </div>
+        </div>
+        <Progress value={progress} className="mt-2 h-2 bg-secondary [&>div]:bg-primary" />
+      </div>
         <Progress value={progress} className="mt-2 h-2 bg-secondary [&>div]:bg-primary" />
       </div>
 
