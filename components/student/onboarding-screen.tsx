@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Camera, User, ChevronRight } from "lucide-react"
+import { Camera, User, ChevronRight, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,10 +22,13 @@ export function OnboardingScreen({
   const [name, setName] = useState("")
   const [weight, setWeight] = useState("")
   const [height, setHeight] = useState("")
+  const [cep, setCep] = useState("")
+  const [cidade, setCidade] = useState("")
   const [selectedGoal, setSelectedGoal] = useState("")
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadingCep, setLoadingCep] = useState(false)
   const [erro, setErro] = useState("")
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -33,6 +36,29 @@ export function OnboardingScreen({
     if (!file) return
     setAvatarFile(file)
     setAvatarPreview(URL.createObjectURL(file))
+  }
+
+  async function handleCepChange(value: string) {
+    const cleaned = value.replace(/\D/g, '')
+    setCep(cleaned)
+    if (cleaned.length === 8) {
+      setLoadingCep(true)
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`)
+        const data = await res.json()
+        if (!data.erro) {
+          setCidade(`${data.localidade} — ${data.uf}`)
+        } else {
+          setCidade("")
+        }
+      } catch {
+        setCidade("")
+      } finally {
+        setLoadingCep(false)
+      }
+    } else {
+      setCidade("")
+    }
   }
 
   async function handleNext() {
@@ -48,7 +74,6 @@ export function OnboardingScreen({
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) throw new Error("Usuário não encontrado")
 
-        // Upload do avatar se tiver
         let fotoUrl = null
         if (avatarFile) {
           const ext = avatarFile.name.split('.').pop()
@@ -64,16 +89,16 @@ export function OnboardingScreen({
           }
         }
 
-        // Garante que o profile existe (upsert)
         await supabase.from('profiles').upsert({
           id: user.id,
           tipo: 'aluno',
           nome: name || 'Novo usuário',
           email: user.email || '',
           foto_url: fotoUrl,
+          cep: cep || null,
+          cidade: cidade || null,
         }, { onConflict: 'id' })
 
-        // Verifica se já tem aluno cadastrado
         const { data: alunoExistente } = await supabase
           .from('alunos')
           .select('id')
@@ -104,7 +129,7 @@ export function OnboardingScreen({
       }
       return
     }
-    // Steps 1 e 2 só avança
+
     if (step === 1 && !name.trim()) {
       setErro("Digite seu nome")
       return
@@ -112,10 +137,10 @@ export function OnboardingScreen({
     setErro("")
     onNext()
   }
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="mx-auto flex w-full max-w-[430px] flex-1 flex-col px-6 py-8">
-        {/* Progress */}
         <div className="mb-8 flex items-center gap-2">
           {[1, 2, 3].map((s) => (
             <div
@@ -127,7 +152,6 @@ export function OnboardingScreen({
           ))}
         </div>
 
-        {/* Logo */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">
             Gym<span className="text-primary">Flow</span>
@@ -149,7 +173,6 @@ export function OnboardingScreen({
           >
             {step === 1 && (
               <div className="flex flex-col gap-6">
-                {/* Avatar */}
                 <label className="mx-auto flex h-28 w-28 cursor-pointer items-center justify-center rounded-full border-2 border-dashed border-primary/50 bg-secondary transition-colors hover:border-primary overflow-hidden">
                   {avatarPreview ? (
                     <img src={avatarPreview} alt="avatar" className="h-full w-full object-cover" />
@@ -198,6 +221,27 @@ export function OnboardingScreen({
                     placeholder="178"
                     className="border-border bg-secondary text-foreground placeholder:text-muted-foreground focus:border-primary"
                   />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="cep" className="text-muted-foreground">CEP</Label>
+                  <Input
+                    id="cep"
+                    type="text"
+                    value={cep}
+                    onChange={(e) => handleCepChange(e.target.value)}
+                    placeholder="00000000"
+                    maxLength={8}
+                    className="border-border bg-secondary text-foreground placeholder:text-muted-foreground focus:border-primary"
+                  />
+                  {loadingCep && (
+                    <p className="text-xs text-muted-foreground">Buscando cidade...</p>
+                  )}
+                  {cidade && (
+                    <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2">
+                      <MapPin className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium text-primary">{cidade}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
