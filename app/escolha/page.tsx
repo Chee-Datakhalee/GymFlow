@@ -45,10 +45,9 @@ export default function EscolhaPage() {
         <div className="glow-br" />
 
         <header className="choice-top">
-          <a className="logo" href="/">
-            <span className="logo-mark">G</span>
-            GymFlow
-          </a>
+          <a href="/">
+  <img src="/LOGO-GYN-FLOW.png" alt="GymFlow" style={{height:'32px'}} />
+</a>
           <span className="choice-eyebrow">v1.0</span>
         </header>
 
