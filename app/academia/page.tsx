@@ -285,7 +285,7 @@ export default function AcademiaLP() {
             <span className="eyebrow">VAMOS COMEÇAR</span>
             <h2 style={{marginTop:'14px'}}>Comece <em>30 dias grátis.</em></h2>
             <p>Sem cartão. Sem fidelidade. Cancele a qualquer momento.</p>
-            <a href="/" className="btn btn-primary btn-lg btn-block">
+            <a href="/" className="btn btn-primary btn-lg">
               Quero para minha academia
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
             </a>
