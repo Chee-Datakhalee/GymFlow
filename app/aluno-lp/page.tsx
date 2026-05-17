@@ -324,9 +324,9 @@ export default function AlunoLP() {
         {/* FOOTER */}
         <footer className="footer">
           <div style={{marginBottom:'10px'}}>
-            <a href="/escolha">Início</a> ·
-            <a href="/academia">Para academias</a> ·
-            <a href="#cta">Baixar</a>
+            <a href="/escolha">
+  <img src="/LOGO-GYN-FLOW.png" alt="GymFlow" style={{height:'32px'}} />
+</a>
           </div>
           <div style={{fontFamily:"'JetBrains Mono',monospace",letterSpacing:'0.12em'}}>© 2026 GYMFLOW</div>
         </footer>
